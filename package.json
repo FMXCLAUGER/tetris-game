@@ -1,0 +1,26 @@
+{
+  "name": "tetris-game",
+  "version": "1.0.0",
+  "description": "Classic Tetris game with multiple grid configurations, built with vanilla JavaScript and HTML5 Canvas",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve -s . -l ${PORT:-3000}",
+    "dev": "serve -s . -l 3000"
+  },
+  "keywords": [
+    "tetris",
+    "game",
+    "html5",
+    "canvas",
+    "javascript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "serve": "^14.2.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
