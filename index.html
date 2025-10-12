@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <h1>Tetris</h1>
+    
+    <!-- Menu de sélection de grille -->
+    <div id="grid-menu">
+        <h2>Choisissez votre grille</h2>
+        <select id="grid-select">
+            <option value="standard">Standard (10x20)</option>
+            <option value="square">Carré (15x15)</option>
+            <option value="wide">Large (15x25)</option>
+            <option value="tall">Haut (8x25)</option>
+            <option value="mini">Mini (8x12)</option>
+        </select>
+        <button id="start-game">Commencer</button>
+    </div>
+
+    <div id="game-container" style="display: none;">
+        <canvas id="tetris" width="300" height="500"></canvas>
+        <div id="info">
+            <h2>Score: <span id="score">0</span></h2>
+            <canvas id="next" width="120" height="120"></canvas>
+            <p>Prochaine pièce</p>
+            <div id="game-controls">
+                <button class="control-btn" id="pause"><i class="fas fa-pause"></i></button>
+                <div id="controls">
+                    <button class="control-btn" id="rotate-left"><i class="fas fa-undo"></i></button>
+                    <button class="control-btn" id="up"><i class="fas fa-arrow-up"></i></button>
+                    <button class="control-btn" id="rotate-right"><i class="fas fa-redo"></i></button>
+                    <button class="control-btn" id="left"><i class="fas fa-arrow-left"></i></button>
+                    <button class="control-btn" id="down"><i class="fas fa-arrow-down"></i></button>
+                    <button class="control-btn" id="right"><i class="fas fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
