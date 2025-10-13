@@ -68,6 +68,12 @@ function initGame(gridType) {
     lastMoveWasRotation = false;
     tSpinType = null;
     perfectClearBonus = 0;
+
+    // Phase 9 - Reset metrics
+    totalMoves = 0;
+    totalRotations = 0;
+    totalHardDrops = 0;
+    totalSoftDrops = 0;
     updateScore();
     updateLevel();
     updateCombo();
@@ -417,18 +423,20 @@ function rotate() {
 
 function rotateLeft() {
     const originalShape = piece.shape;
-    const newShape = originalShape[0].map((_, colIndex) => 
+    const newShape = originalShape[0].map((_, colIndex) =>
         originalShape.map(row => row[row.length-1-colIndex])
     );
     tryRotate(newShape);
+    totalRotations++; // Phase 9 - Track rotations
 }
 
 function rotateRight() {
     const originalShape = piece.shape;
-    const newShape = originalShape[0].map((_, colIndex) => 
+    const newShape = originalShape[0].map((_, colIndex) =>
         originalShape.map(row => row[colIndex]).reverse()
     );
     tryRotate(newShape);
+    totalRotations++; // Phase 9 - Track rotations
 }
 
 function tryRotate(newShape) {
@@ -486,6 +494,7 @@ function softDrop() {
         score += 1;
         updateScore();
         lastMoveWasRotation = false; // Reset rotation flag
+        totalSoftDrops++; // Phase 9 - Track soft drops
     }
 }
 
@@ -496,6 +505,7 @@ function hardDrop() {
         dropDistance++;
     }
     score += dropDistance * 2;
+    totalHardDrops++; // Phase 9 - Track hard drops
     merge();
     resetPiece();
     sweepBoard();
@@ -723,7 +733,6 @@ function actuallyRemoveLines() {
 
     // Phase 4 - Détection T-Spin
     const isTSpin = detectTSpin();
-    const isPerfect = false; // On vérifie après suppression des lignes
 
     // Supprimer les lignes
     linesToClear.sort((a, b) => b - a); // Trier en ordre décroissant
@@ -870,6 +879,12 @@ let lastMoveWasRotation = false;
 let tSpinType = null; // null, 'mini', 'normal'
 let perfectClearBonus = 0;
 
+// Phase 9 - Competitive Metrics
+let totalMoves = 0;
+let totalRotations = 0;
+let totalHardDrops = 0;
+let totalSoftDrops = 0;
+
 function update(time = 0) {
     if (isPaused) return;
 
@@ -924,6 +939,7 @@ function update(time = 0) {
     draw();
     drawNextQueue();
     drawHoldPiece();
+    updateMetrics(); // Phase 9 - Update metrics in real-time
     animationFrameId = requestAnimationFrame(update);
 }
 
@@ -974,6 +990,35 @@ function updateBackToBack() {
     }
 }
 
+// Phase 9 - Calculate competitive metrics
+function calculateMetrics() {
+    const elapsedSeconds = (Date.now() - gameStartTime) / 1000;
+    if (elapsedSeconds === 0) return {pps: 0, apm: 0, kpp: 0, efficiency: 0};
+
+    const pps = (pieceCount / elapsedSeconds).toFixed(2);
+    const totalActions = totalMoves + totalRotations + totalHardDrops;
+    const apm = ((totalActions / elapsedSeconds) * 60).toFixed(0);
+    const kpp = pieceCount > 0 ? (totalActions / pieceCount).toFixed(2) : 0;
+    const efficiency = pieceCount > 0 ? ((linesCleared / pieceCount) * 100).toFixed(1) : 0;
+
+    return {pps, apm, kpp, efficiency};
+}
+
+// Phase 9 - Update metrics display
+function updateMetrics() {
+    const metrics = calculateMetrics();
+
+    const ppsElement = document.getElementById('metric-pps');
+    const apmElement = document.getElementById('metric-apm');
+    const kppElement = document.getElementById('metric-kpp');
+    const efficiencyElement = document.getElementById('metric-efficiency');
+
+    if (ppsElement) ppsElement.innerText = metrics.pps;
+    if (apmElement) apmElement.innerText = metrics.apm;
+    if (kppElement) kppElement.innerText = metrics.kpp;
+    if (efficiencyElement) efficiencyElement.innerText = metrics.efficiency + '%';
+}
+
 function resetLockDelay() {
     if (collide(piece.shape, piece.x, piece.y + 1)) {
         lockDelay = 0;
@@ -993,6 +1038,7 @@ document.addEventListener('keydown', event => {
             } else {
                 resetLockDelay();
                 lastMoveWasRotation = false; // Reset rotation flag on movement
+                totalMoves++; // Phase 9 - Track moves
             }
         } else if (key === 'ArrowRight' || key === 'UIKeyInputRightArrow') {
             piece.x++;
@@ -1001,6 +1047,7 @@ document.addEventListener('keydown', event => {
             } else {
                 resetLockDelay();
                 lastMoveWasRotation = false; // Reset rotation flag on movement
+                totalMoves++; // Phase 9 - Track moves
             }
         } else if (key === 'ArrowDown' || key === 'UIKeyInputDownArrow') {
             piece.y++;

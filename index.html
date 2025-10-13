@@ -45,6 +45,30 @@
             <h3 id="combo" style="display: none; color: #ff9800; font-weight: bold;">Combo x0</h3>
             <h3 id="back-to-back" style="display: none; color: #4CAF50; font-weight: bold;">Back-to-Back x0</h3>
             <h2 id="special-message" style="display: none; color: #FF1493; font-weight: bold; font-size: 18px; margin-top: 20px; text-align: center; animation: pulse 0.5s ease-in-out;"></h2>
+
+            <!-- Phase 9 - Competitive Metrics -->
+            <div id="metrics-panel" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0; text-align: center; font-size: 16px;">Métriques</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px;">
+                    <div style="text-align: center;">
+                        <strong>PPS</strong><br>
+                        <span id="metric-pps" style="font-size: 18px; color: #2196F3;">0.00</span>
+                    </div>
+                    <div style="text-align: center;">
+                        <strong>APM</strong><br>
+                        <span id="metric-apm" style="font-size: 18px; color: #4CAF50;">0</span>
+                    </div>
+                    <div style="text-align: center;">
+                        <strong>KPP</strong><br>
+                        <span id="metric-kpp" style="font-size: 18px; color: #FF9800;">0.00</span>
+                    </div>
+                    <div style="text-align: center;">
+                        <strong>Efficiency</strong><br>
+                        <span id="metric-efficiency" style="font-size: 18px; color: #9C27B0;">0%</span>
+                    </div>
+                </div>
+            </div>
+
             <canvas id="hold" width="120" height="120"></canvas>
             <p>Hold (C ou Shift)</p>
             <canvas id="next" width="120" height="240"></canvas>
