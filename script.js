@@ -51,13 +51,13 @@ function initGame(gridType) {
 
     board = createBoard();
     score = 0;
-    level = 1;
+    level = gameSettings.startLevel; // Phase 8 - Use start level from settings
     linesCleared = 0;
     combo = 0;
     backToBack = 0;
     lockDelay = 0;
     lockDelayMoves = 0;
-    dropInterval = 1000;
+    dropInterval = Math.max(100, 1000 - (level * 50)); // Phase 8 - Adjust speed based on start level
     pieceBag = [];
     holdPiece = null;
     canHold = true;
@@ -268,6 +268,7 @@ document.getElementById('stats-modal').addEventListener('click', (e) => {
 // Appeler au chargement de la page
 displayHighScores();
 loadStats(); // Phase 7 - Load stats
+loadSettings(); // Phase 8 - Load settings
 
 const TETROMINOES = [
     [[1, 1, 1, 1]], // I
@@ -385,7 +386,10 @@ function draw() {
     context.strokeRect(0, 0, COLS, ROWS);
 
     drawMatrix(board, { x: 0, y: 0 });
-    drawGhostPiece();
+    // Phase 8 - Only draw ghost piece if setting is enabled
+    if (gameSettings.showGhostPiece) {
+        drawGhostPiece();
+    }
     drawMatrix(piece.shape, { x: piece.x, y: piece.y }, piece.color);
 }
 
@@ -437,20 +441,23 @@ function drawMatrix(matrix, offset, color) {
         });
     });
 
-    // Grille de fond (Phase 6 - use theme grid)
-    context.strokeStyle = THEMES[currentTheme].grid;
-    context.lineWidth = 0.02;
-    for (let x = 0; x <= COLS; x++) {
-        context.beginPath();
-        context.moveTo(x, 0);
-        context.lineTo(x, ROWS);
-        context.stroke();
-    }
-    for (let y = 0; y <= ROWS; y++) {
-        context.beginPath();
-        context.moveTo(0, y);
-        context.lineTo(COLS, y);
-        context.stroke();
+    // Phase 8 - Only draw grid lines if setting is enabled
+    if (gameSettings.showGridLines) {
+        // Grille de fond (Phase 6 - use theme grid)
+        context.strokeStyle = THEMES[currentTheme].grid;
+        context.lineWidth = 0.02;
+        for (let x = 0; x <= COLS; x++) {
+            context.beginPath();
+            context.moveTo(x, 0);
+            context.lineTo(x, ROWS);
+            context.stroke();
+        }
+        for (let y = 0; y <= ROWS; y++) {
+            context.beginPath();
+            context.moveTo(0, y);
+            context.lineTo(COLS, y);
+            context.stroke();
+        }
     }
 }
 
@@ -1149,6 +1156,194 @@ class AudioManager {
 }
 
 const audioManager = new AudioManager();
+
+// Phase 8 - Settings System
+let gameSettings = {
+    volume: 30,
+    showGhostPiece: true,
+    showGridLines: true,
+    startLevel: 1,
+    colorblindMode: false,
+    highContrast: false
+};
+
+// Phase 8 - Load settings from localStorage
+function loadSettings() {
+    const saved = localStorage.getItem('tetrisSettings');
+    if (saved) {
+        gameSettings = { ...gameSettings, ...JSON.parse(saved) };
+    }
+    applySettings();
+}
+
+// Phase 8 - Save settings to localStorage
+function saveSettings() {
+    localStorage.setItem('tetrisSettings', JSON.stringify(gameSettings));
+}
+
+// Phase 8 - Apply all settings
+function applySettings() {
+    // Apply volume
+    audioManager.volume = gameSettings.volume / 100;
+    const volumeSlider = document.getElementById('volume-slider');
+    const volumeValue = document.getElementById('volume-value');
+    if (volumeSlider) volumeSlider.value = gameSettings.volume;
+    if (volumeValue) volumeValue.innerText = gameSettings.volume;
+
+    // Apply ghost piece toggle
+    const ghostToggle = document.getElementById('ghost-piece-toggle');
+    if (ghostToggle) ghostToggle.checked = gameSettings.showGhostPiece;
+
+    // Apply grid lines toggle
+    const gridToggle = document.getElementById('grid-lines-toggle');
+    if (gridToggle) gridToggle.checked = gameSettings.showGridLines;
+
+    // Apply start level
+    const startLevelInput = document.getElementById('start-level');
+    if (startLevelInput) startLevelInput.value = gameSettings.startLevel;
+
+    // Apply colorblind mode
+    const colorblindToggle = document.getElementById('colorblind-mode');
+    if (colorblindToggle) colorblindToggle.checked = gameSettings.colorblindMode;
+
+    // Apply high contrast
+    const highContrastToggle = document.getElementById('high-contrast');
+    if (highContrastToggle) highContrastToggle.checked = gameSettings.highContrast;
+
+    // Apply colorblind colors if enabled
+    if (gameSettings.colorblindMode) {
+        applyColorblindPalette();
+    }
+
+    // Apply high contrast if enabled
+    if (gameSettings.highContrast) {
+        applyHighContrast();
+    }
+}
+
+// Phase 8 - Colorblind-friendly palette
+function applyColorblindPalette() {
+    // Colorblind-safe colors (avoiding red-green confusion)
+    const colorblindColors = [
+        '#0173B2', // Blue (I)
+        '#ECE133', // Yellow (O)
+        '#DE8F05', // Orange (T)
+        '#029E73', // Teal (S)
+        '#CC78BC', // Pink (Z)
+        '#CA9161', // Tan (L)
+        '#949494'  // Grey (J)
+    ];
+    COLORS = [...colorblindColors];
+}
+
+// Phase 8 - High contrast mode
+function applyHighContrast() {
+    document.body.style.filter = 'contrast(1.5)';
+}
+
+// Phase 8 - Reset contrast
+function resetContrast() {
+    document.body.style.filter = '';
+}
+
+// Phase 8 - Reset settings to defaults
+function resetSettings() {
+    gameSettings = {
+        volume: 30,
+        showGhostPiece: true,
+        showGridLines: true,
+        startLevel: 1,
+        colorblindMode: false,
+        highContrast: false
+    };
+    applySettings();
+    // Restore theme colors if colorblind mode was disabled
+    if (!gameSettings.colorblindMode) {
+        applyTheme(currentTheme);
+    }
+    // Reset contrast
+    if (!gameSettings.highContrast) {
+        resetContrast();
+    }
+    saveSettings();
+}
+
+// Phase 8 - Event listeners for settings modal
+document.getElementById('view-settings').addEventListener('click', () => {
+    applySettings(); // Sync UI with current settings
+    document.getElementById('settings-modal').style.display = 'block';
+});
+
+document.getElementById('close-settings').addEventListener('click', () => {
+    document.getElementById('settings-modal').style.display = 'none';
+});
+
+// Close on backdrop click
+document.getElementById('settings-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'settings-modal') {
+        document.getElementById('settings-modal').style.display = 'none';
+    }
+});
+
+// Phase 8 - Volume slider
+document.getElementById('volume-slider').addEventListener('input', (e) => {
+    const value = parseInt(e.target.value);
+    document.getElementById('volume-value').innerText = value;
+    gameSettings.volume = value;
+    audioManager.volume = value / 100;
+});
+
+// Phase 8 - Ghost piece toggle
+document.getElementById('ghost-piece-toggle').addEventListener('change', (e) => {
+    gameSettings.showGhostPiece = e.target.checked;
+});
+
+// Phase 8 - Grid lines toggle
+document.getElementById('grid-lines-toggle').addEventListener('change', (e) => {
+    gameSettings.showGridLines = e.target.checked;
+});
+
+// Phase 8 - Start level input
+document.getElementById('start-level').addEventListener('change', (e) => {
+    const value = parseInt(e.target.value);
+    if (value >= 1 && value <= 20) {
+        gameSettings.startLevel = value;
+    }
+});
+
+// Phase 8 - Colorblind mode toggle
+document.getElementById('colorblind-mode').addEventListener('change', (e) => {
+    gameSettings.colorblindMode = e.target.checked;
+    if (e.target.checked) {
+        applyColorblindPalette();
+    } else {
+        applyTheme(currentTheme); // Restore theme colors
+    }
+});
+
+// Phase 8 - High contrast toggle
+document.getElementById('high-contrast').addEventListener('change', (e) => {
+    gameSettings.highContrast = e.target.checked;
+    if (e.target.checked) {
+        applyHighContrast();
+    } else {
+        resetContrast();
+    }
+});
+
+// Phase 8 - Reset button
+document.getElementById('reset-settings').addEventListener('click', () => {
+    if (confirm('Réinitialiser tous les paramètres aux valeurs par défaut ?')) {
+        resetSettings();
+    }
+});
+
+// Phase 8 - Save button
+document.getElementById('save-settings').addEventListener('click', () => {
+    saveSettings();
+    alert('Paramètres sauvegardés !');
+    document.getElementById('settings-modal').style.display = 'none';
+});
 
 // Phase 7 - Statistiques détaillées
 let gameStats = {
