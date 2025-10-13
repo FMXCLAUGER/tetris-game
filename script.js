@@ -401,27 +401,30 @@ function updateScore() {
 
 // Mise à jour des event listeners
 document.addEventListener('keydown', event => {
+    // Support iOS/iPadOS external keyboard non-standard key values
+    const key = event.key;
+
     if (!isPaused) {
-        if (event.key === 'ArrowLeft') {
+        if (key === 'ArrowLeft' || key === 'UIKeyInputLeftArrow') {
             piece.x--;
             if (collide(piece.shape)) {
                 piece.x++;
             }
-        } else if (event.key === 'ArrowRight') {
+        } else if (key === 'ArrowRight' || key === 'UIKeyInputRightArrow') {
             piece.x++;
             if (collide(piece.shape)) {
                 piece.x--;
             }
-        } else if (event.key === 'ArrowDown') {
+        } else if (key === 'ArrowDown' || key === 'UIKeyInputDownArrow') {
             pieceDrop();
-        } else if (event.key === 'ArrowUp') {
+        } else if (key === 'ArrowUp' || key === 'UIKeyInputUpArrow') {
             rotateRight();
         }
     }
-    if (event.key === 'p' || event.key === 'P') {
+    if (key === 'p' || key === 'P') {
         togglePause();
     }
-    if (event.key === 'r' || event.key === 'R') {
+    if (key === 'r' || key === 'R') {
         restartGame();
     }
     draw();
@@ -474,10 +477,14 @@ document.getElementById('pause').addEventListener('click', togglePause);
 let touchStartX = null;
 let touchStartY = null;
 
+// Seuil minimum pour détecter un swipe (évite les mouvements accidentels)
+const SWIPE_THRESHOLD = 30;
+
 document.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
-});
+    e.preventDefault(); // Empêche le scroll
+}, {passive: false}); // Requis pour preventDefault() sur iOS Safari 11.3+
 
 document.addEventListener('touchend', (e) => {
     if (!touchStartX || !touchStartY) return;
@@ -488,27 +495,40 @@ document.addEventListener('touchend', (e) => {
     const deltaX = touchEndX - touchStartX;
     const deltaY = touchEndY - touchStartY;
 
-    // Détecter la direction du swipe
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        if (deltaX > 0) {
-            piece.x++;
-            if (collide(piece.shape)) piece.x--;
+    // Vérifier que le swipe dépasse le seuil minimum
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    if (distance < SWIPE_THRESHOLD) {
+        touchStartX = null;
+        touchStartY = null;
+        return; // Swipe trop petit, ignoré
+    }
+
+    // Ne traiter les swipes que si le jeu n'est pas en pause
+    if (!isPaused) {
+        // Détecter la direction du swipe
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            if (deltaX > 0) {
+                piece.x++;
+                if (collide(piece.shape)) piece.x--;
+            } else {
+                piece.x--;
+                if (collide(piece.shape)) piece.x++;
+            }
         } else {
-            piece.x--;
-            if (collide(piece.shape)) piece.x++;
+            if (deltaY > 0) {
+                pieceDrop();
+            } else {
+                rotateRight();
+            }
         }
-    } else {
-        if (deltaY > 0) {
-            pieceDrop();
-        } else {
-            rotateRight();
-        }
+        draw();
     }
 
     touchStartX = null;
     touchStartY = null;
-    draw();
-});
+    e.preventDefault();
+}, {passive: false});
 
 // Fonction pour redémarrer le jeu avec une nouvelle grille
 function restartGame() {

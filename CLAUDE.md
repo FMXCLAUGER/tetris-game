@@ -75,12 +75,17 @@ Two rotation functions with wall-kick logic:
 ### Input Handling
 
 Three input systems:
-1. **Keyboard**: Arrow keys for movement/rotation, P for pause, R for restart (script.js:403-428)
-2. **Button controls**: Grid layout for mobile (script.js:431-471)
-3. **Touch gestures**: Swipe detection for mobile (script.js:473-511)
+1. **Keyboard**: Arrow keys for movement/rotation, P for pause, R for restart (script.js:403-431)
+   - Supports both standard (`ArrowLeft`, `ArrowRight`, etc.) and iOS/iPadOS external keyboard values (`UIKeyInputLeftArrow`, etc.)
+   - **Note**: iPad virtual keyboard has NO arrow keys - users must use touch gestures or external keyboard
+2. **Button controls**: Grid layout for mobile (script.js:434-474)
+3. **Touch gestures**: Swipe detection with 30px minimum threshold (script.js:476-531)
+   - Uses `{passive: false}` for preventDefault() compatibility with Safari iOS 11.3+
+   - Respects pause state (only processes swipes when `!isPaused`)
    - Horizontal swipes: move left/right
    - Down swipe: drop piece
    - Up swipe: rotate
+   - Minimum swipe distance prevents accidental movements
 
 ### Game Initialization Flow
 
