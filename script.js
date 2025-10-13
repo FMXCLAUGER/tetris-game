@@ -71,6 +71,23 @@ function initGame(gridType) {
     initNextQueue();
     drawHoldPiece();
 
+    // Configuration selon le mode de jeu
+    const timerElement = document.getElementById('game-timer');
+    const linesGoalElement = document.getElementById('lines-goal');
+
+    if (gameMode === 'sprint') {
+        timerElement.style.display = 'block';
+        linesGoalElement.style.display = 'block';
+        updateLinesGoal();
+    } else if (gameMode === 'ultra') {
+        timerElement.style.display = 'block';
+        linesGoalElement.style.display = 'none';
+        gameTimer = ultraTimeLimit;
+    } else {
+        timerElement.style.display = 'none';
+        linesGoalElement.style.display = 'none';
+    }
+
     document.getElementById('game-container').style.display = 'flex';
     document.getElementById('grid-menu').style.display = 'none';
 
@@ -83,6 +100,7 @@ function initGame(gridType) {
 // Event listener pour le bouton de démarrage
 document.getElementById('start-game').addEventListener('click', () => {
     const gridType = document.getElementById('grid-select').value;
+    gameMode = document.getElementById('game-mode').value;
     initGame(gridType);
 });
 
@@ -499,17 +517,34 @@ function resetPiece() {
 }
 
 function gameOver() {
+    isPaused = true;
+    cancelAnimationFrame(animationFrameId);
+
     const playTime = Math.floor((Date.now() - gameStartTime) / 1000);
     saveHighScore(score, linesCleared, level, playTime);
 
     board.forEach(row => row.fill(0));
     alert(`Game Over!\n\nScore: ${score}\nLignes: ${linesCleared}\nNiveau: ${level}\nTemps: ${formatTime(playTime)}`);
 
-    score = 0;
-    linesCleared = 0;
-    level = 1;
-    updateScore();
-    updateLevel();
+    restartGame();
+}
+
+function victoryScreen() {
+    isPaused = true;
+    cancelAnimationFrame(animationFrameId);
+
+    const playTime = Math.floor((Date.now() - gameStartTime) / 1000);
+    saveHighScore(score, linesCleared, level, playTime);
+
+    let message = '';
+    if (gameMode === 'sprint') {
+        message = `Sprint Terminé!\n\nTemps: ${formatTime(playTime)}\nScore: ${score}`;
+    } else if (gameMode === 'ultra') {
+        message = `Ultra Terminé!\n\nScore: ${score}\nLignes: ${linesCleared}`;
+    }
+
+    alert(message);
+    restartGame();
 }
 
 function formatTime(seconds) {
@@ -637,6 +672,7 @@ function actuallyRemoveLines() {
     updateCombo();
     updateBackToBack();
     updateScore();
+    updateLinesGoal();
 
     linesToClear = [];
     clearingLines = false;
@@ -681,6 +717,10 @@ let pieceCount = 0;
 let gameStartTime = 0;
 let linesToClear = [];
 let clearingLines = false;
+let gameMode = 'marathon';
+let sprintGoal = 40;
+let ultraTimeLimit = 120; // 2 minutes en secondes
+let gameTimer = 0;
 
 function update(time = 0) {
     if (isPaused) return;
@@ -689,6 +729,23 @@ function update(time = 0) {
     lastTime = time;
 
     dropCounter += deltaTime;
+
+    // Gestion des timers selon le mode
+    if (gameMode === 'sprint') {
+        // Sprint: chronomètre qui monte
+        const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+        updateTimer(elapsed);
+    } else if (gameMode === 'ultra') {
+        // Ultra: compte à rebours
+        const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+        gameTimer = ultraTimeLimit - elapsed;
+        updateTimer(gameTimer);
+
+        if (gameTimer <= 0) {
+            victoryScreen();
+            return;
+        }
+    }
 
     // Check if piece is on ground
     const onGround = collide(piece.shape, piece.x, piece.y + 1);
@@ -724,6 +781,25 @@ function update(time = 0) {
 
 function updateScore() {
     scoreElement.innerText = score;
+}
+
+function updateTimer(seconds) {
+    const timerElement = document.getElementById('timer');
+    if (timerElement) {
+        timerElement.innerText = formatTime(seconds);
+    }
+}
+
+function updateLinesGoal() {
+    const linesCountElement = document.getElementById('lines-count');
+    if (linesCountElement) {
+        linesCountElement.innerText = linesCleared;
+    }
+
+    // Vérifier la victoire en mode Sprint
+    if (gameMode === 'sprint' && linesCleared >= sprintGoal) {
+        victoryScreen();
+    }
 }
 
 function updateCombo() {

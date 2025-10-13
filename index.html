@@ -12,7 +12,14 @@
     
     <!-- Menu de sélection de grille -->
     <div id="grid-menu">
-        <h2>Choisissez votre grille</h2>
+        <h2>Mode de Jeu</h2>
+        <select id="game-mode">
+            <option value="marathon">Marathon (Classique)</option>
+            <option value="sprint">Sprint (40 lignes)</option>
+            <option value="ultra">Ultra (2 minutes)</option>
+        </select>
+
+        <h2 style="margin-top: 20px;">Grille</h2>
         <select id="grid-select">
             <option value="standard">Standard (10x20)</option>
             <option value="square">Carré (15x15)</option>
@@ -33,6 +40,8 @@
         <div id="info">
             <h2>Score: <span id="score">0</span></h2>
             <h2>Niveau: <span id="level">1</span></h2>
+            <h2 id="game-timer" style="display: none;">Temps: <span id="timer">0:00</span></h2>
+            <h2 id="lines-goal" style="display: none;">Lignes: <span id="lines-count">0</span>/40</h2>
             <h3 id="combo" style="display: none; color: #ff9800; font-weight: bold;">Combo x0</h3>
             <h3 id="back-to-back" style="display: none; color: #4CAF50; font-weight: bold;">Back-to-Back x0</h3>
             <canvas id="hold" width="120" height="120"></canvas>
