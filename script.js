@@ -608,7 +608,7 @@ function updateLevel() {
 function sweepBoard() {
     // Détecter les lignes complètes
     linesToClear = [];
-    for (let y = board.length - 1; y > 0; --y) {
+    for (let y = board.length - 1; y >= 0; --y) {
         let complete = true;
         for (let x = 0; x < board[y].length; ++x) {
             if (board[y][x] === 0) {
