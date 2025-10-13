@@ -6,6 +6,27 @@ const holdCanvas = document.getElementById('hold');
 const holdContext = holdCanvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 
+// Haptic Feedback Utility (Vibration API)
+const HapticFeedback = {
+    enabled: true,
+    patterns: {
+        light: 10,      // Quick tap
+        medium: 20,     // Button press
+        heavy: 40,      // Important action
+        success: [10, 50, 10],  // Success pattern
+        error: [50, 30, 50]     // Error pattern
+    },
+    vibrate(pattern) {
+        if (!this.enabled || !navigator.vibrate) return;
+        navigator.vibrate(pattern);
+    },
+    light() { this.vibrate(this.patterns.light); },
+    medium() { this.vibrate(this.patterns.medium); },
+    heavy() { this.vibrate(this.patterns.heavy); },
+    success() { this.vibrate(this.patterns.success); },
+    error() { this.vibrate(this.patterns.error); }
+};
+
 // Configuration des différentes grilles de jeu
 const GRID_CONFIGS = {
     standard: { rows: 20, cols: 10 },
@@ -22,11 +43,30 @@ const NEXT_BLOCK_SIZE = 30;
 function calculateBlockSize(rows, cols) {
     const maxWidth = window.innerWidth * 0.8;  // 80% de la largeur de la fenêtre
     const maxHeight = window.innerHeight * 0.8; // 80% de la hauteur de la fenêtre
-    
+
     const blockWidth = Math.floor(maxWidth / cols);
     const blockHeight = Math.floor(maxHeight / rows);
-    
+
     return Math.min(blockWidth, blockHeight, 40); // Maximum 40px pour éviter des blocs trop grands
+}
+
+// Hi-DPI Canvas Initialization - Critical for Retina displays
+function initCanvas(canvas, ctx, width, height, scale) {
+    // Get device pixel ratio (2 for Retina, 1 for standard)
+    const dpr = window.devicePixelRatio || 1;
+
+    // Set CSS dimensions (logical pixels)
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+
+    // Set actual canvas size in device pixels
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+
+    // Scale context to handle Hi-DPI
+    // First scale for device pixel ratio, then scale for block size
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+    ctx.scale(scale * dpr, scale * dpr);
 }
 
 // Fonction d'initialisation du jeu
@@ -36,18 +76,10 @@ function initGame(gridType) {
     COLS = config.cols;
     BLOCK_SIZE = calculateBlockSize(ROWS, COLS);
 
-    canvas.width = COLS * BLOCK_SIZE;
-    canvas.height = ROWS * BLOCK_SIZE;
-
-    nextCanvas.width = 4 * NEXT_BLOCK_SIZE;
-    nextCanvas.height = 8 * NEXT_BLOCK_SIZE;
-
-    holdCanvas.width = 4 * NEXT_BLOCK_SIZE;
-    holdCanvas.height = 4 * NEXT_BLOCK_SIZE;
-
-    context.scale(BLOCK_SIZE, BLOCK_SIZE);
-    nextContext.scale(NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
-    holdContext.scale(NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
+    // Initialize canvases with Hi-DPI support
+    initCanvas(canvas, context, COLS * BLOCK_SIZE, ROWS * BLOCK_SIZE, BLOCK_SIZE);
+    initCanvas(nextCanvas, nextContext, 4 * NEXT_BLOCK_SIZE, 8 * NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
+    initCanvas(holdCanvas, holdContext, 4 * NEXT_BLOCK_SIZE, 4 * NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
 
     board = createBoard();
     score = 0;
@@ -99,7 +131,7 @@ function initGame(gridType) {
         linesGoalElement.style.display = 'none';
     }
 
-    document.getElementById('game-container').style.display = 'flex';
+    document.getElementById('game-container').classList.remove('hidden');
     document.getElementById('grid-menu').style.display = 'none';
 
     isPaused = false;
@@ -271,17 +303,17 @@ function displayStats() {
 // Phase 7 - Event listeners for stats modal
 document.getElementById('view-stats').addEventListener('click', () => {
     displayStats();
-    document.getElementById('stats-modal').style.display = 'block';
+    document.getElementById('stats-modal').classList.add('active');
 });
 
 document.getElementById('close-stats').addEventListener('click', () => {
-    document.getElementById('stats-modal').style.display = 'none';
+    document.getElementById('stats-modal').classList.remove('active');
 });
 
 // Close on backdrop click
 document.getElementById('stats-modal').addEventListener('click', (e) => {
     if (e.target.id === 'stats-modal') {
-        document.getElementById('stats-modal').style.display = 'none';
+        document.getElementById('stats-modal').classList.remove('active');
     }
 });
 
@@ -1021,17 +1053,21 @@ function actuallyRemoveLines() {
         pointsEarned += perfectClearBonus;
         showSpecialMessage('PERFECT CLEAR! +' + perfectClearBonus);
         audioManager.playPerfectClear(); // Phase 6 - Play sound
+        HapticFeedback.success();  // Haptic feedback for perfect clear
         gameStats.totalPerfectClears++; // Phase 7 - Track perfect clears
     } else if (isTSpin && linesThisTurn > 0) {
         showSpecialMessage(actionName + '! +' + pointsEarned);
         audioManager.playTSpin(); // Phase 6 - Play sound
+        HapticFeedback.heavy();  // Haptic feedback for T-Spin
         gameStats.totalTSpins++; // Phase 7 - Track T-Spins
     } else if (linesThisTurn === 4) {
         showSpecialMessage(actionName + '! +' + pointsEarned);
         audioManager.playTetris(); // Phase 6 - Play sound
+        HapticFeedback.heavy();  // Haptic feedback for Tetris
         gameStats.totalTetrises++; // Phase 7 - Track Tetrises
     } else if (linesThisTurn > 0) {
         audioManager.playLineClear(linesThisTurn); // Phase 6 - Play sound
+        HapticFeedback.medium();  // Haptic feedback for line clear
     }
 
     score += pointsEarned;
@@ -1341,16 +1377,10 @@ function startReplayPlayback(replayJson) {
     COLS = config.cols;
     BLOCK_SIZE = calculateBlockSize(ROWS, COLS);
 
-    canvas.width = COLS * BLOCK_SIZE;
-    canvas.height = ROWS * BLOCK_SIZE;
-    nextCanvas.width = 4 * NEXT_BLOCK_SIZE;
-    nextCanvas.height = 8 * NEXT_BLOCK_SIZE;
-    holdCanvas.width = 4 * NEXT_BLOCK_SIZE;
-    holdCanvas.height = 4 * NEXT_BLOCK_SIZE;
-
-    context.scale(BLOCK_SIZE, BLOCK_SIZE);
-    nextContext.scale(NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
-    holdContext.scale(NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
+    // Initialize canvases with Hi-DPI support
+    initCanvas(canvas, context, COLS * BLOCK_SIZE, ROWS * BLOCK_SIZE, BLOCK_SIZE);
+    initCanvas(nextCanvas, nextContext, 4 * NEXT_BLOCK_SIZE, 8 * NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
+    initCanvas(holdCanvas, holdContext, 4 * NEXT_BLOCK_SIZE, 4 * NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
 
     board = createBoard();
     score = 0;
@@ -1399,11 +1429,11 @@ function startReplayPlayback(replayJson) {
         linesGoalElement.style.display = 'none';
     }
 
-    document.getElementById('game-container').style.display = 'flex';
-    document.getElementById('replays-modal').style.display = 'none';
+    document.getElementById('game-container').classList.remove('hidden');
+    document.getElementById('replays-modal').classList.remove('active');
 
     // Show replay controls
-    document.getElementById('replay-controls').style.display = 'block';
+    document.getElementById('replay-controls').classList.remove('hidden');
     updateReplaySpeedDisplay();
 
     isPaused = false;
@@ -1420,7 +1450,7 @@ function stopReplayPlayback() {
     replayData = null;
     replayInputIndex = 0;
     replayPieceIndex = 0;
-    document.getElementById('replay-controls').style.display = 'none';
+    document.getElementById('replay-controls').classList.add('hidden');
     restartGame();
 }
 
@@ -1643,17 +1673,17 @@ function resetSettings() {
 // Phase 8 - Event listeners for settings modal
 document.getElementById('view-settings').addEventListener('click', () => {
     applySettings(); // Sync UI with current settings
-    document.getElementById('settings-modal').style.display = 'block';
+    document.getElementById('settings-modal').classList.add('active');
 });
 
 document.getElementById('close-settings').addEventListener('click', () => {
-    document.getElementById('settings-modal').style.display = 'none';
+    document.getElementById('settings-modal').classList.remove('active');
 });
 
 // Close on backdrop click
 document.getElementById('settings-modal').addEventListener('click', (e) => {
     if (e.target.id === 'settings-modal') {
-        document.getElementById('settings-modal').style.display = 'none';
+        document.getElementById('settings-modal').classList.remove('active');
     }
 });
 
@@ -1714,7 +1744,7 @@ document.getElementById('reset-settings').addEventListener('click', () => {
 document.getElementById('save-settings').addEventListener('click', () => {
     saveSettings();
     alert('Paramètres sauvegardés !');
-    document.getElementById('settings-modal').style.display = 'none';
+    document.getElementById('settings-modal').classList.remove('active');
 });
 
 // Phase 10 - Replay viewer functions
@@ -1766,17 +1796,17 @@ function displayReplays() {
 // Phase 10 - Event listeners for replays modal
 document.getElementById('view-replays').addEventListener('click', () => {
     displayReplays();
-    document.getElementById('replays-modal').style.display = 'block';
+    document.getElementById('replays-modal').classList.add('active');
 });
 
 document.getElementById('close-replays').addEventListener('click', () => {
-    document.getElementById('replays-modal').style.display = 'none';
+    document.getElementById('replays-modal').classList.remove('active');
 });
 
 // Close on backdrop click
 document.getElementById('replays-modal').addEventListener('click', (e) => {
     if (e.target.id === 'replays-modal') {
-        document.getElementById('replays-modal').style.display = 'none';
+        document.getElementById('replays-modal').classList.remove('active');
     }
 });
 
@@ -2159,6 +2189,7 @@ document.addEventListener('keydown', event => {
 
 // Ajout des gestionnaires d'événements pour les boutons
 document.getElementById('left').addEventListener('click', () => {
+    HapticFeedback.light();  // Haptic feedback
     piece.x--;
     if (collide(piece.shape)) {
         piece.x++;
@@ -2167,6 +2198,7 @@ document.getElementById('left').addEventListener('click', () => {
 });
 
 document.getElementById('right').addEventListener('click', () => {
+    HapticFeedback.light();  // Haptic feedback
     piece.x++;
     if (collide(piece.shape)) {
         piece.x--;
@@ -2175,17 +2207,20 @@ document.getElementById('right').addEventListener('click', () => {
 });
 
 document.getElementById('down').addEventListener('click', () => {
+    HapticFeedback.medium();  // Haptic feedback
     softDrop();
     draw();
 });
 
 document.getElementById('up').addEventListener('click', () => {
+    HapticFeedback.medium();  // Haptic feedback
     rotateRight();
     draw();
 });
 
 document.getElementById('rotate-left').addEventListener('click', () => {
     if (!isPaused) {
+        HapticFeedback.medium();  // Haptic feedback
         rotateLeft();
         draw();
     }
@@ -2193,12 +2228,16 @@ document.getElementById('rotate-left').addEventListener('click', () => {
 
 document.getElementById('rotate-right').addEventListener('click', () => {
     if (!isPaused) {
+        HapticFeedback.medium();  // Haptic feedback
         rotateRight();
         draw();
     }
 });
 
-document.getElementById('pause').addEventListener('click', togglePause);
+document.getElementById('pause').addEventListener('click', () => {
+    HapticFeedback.medium();  // Haptic feedback
+    togglePause();
+});
 
 // Phase 6 - Mute button
 document.getElementById('mute').addEventListener('click', () => {
@@ -2251,6 +2290,7 @@ canvas.addEventListener('touchend', (e) => {
     if (!isPaused) {
         // Détecter la direction du swipe
         if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            HapticFeedback.light();  // Haptic feedback for horizontal swipe
             if (deltaX > 0) {
                 piece.x++;
                 if (collide(piece.shape)) piece.x--;
@@ -2260,8 +2300,10 @@ canvas.addEventListener('touchend', (e) => {
             }
         } else {
             if (deltaY > 0) {
+                HapticFeedback.medium();  // Haptic feedback for drop
                 softDrop();
             } else {
+                HapticFeedback.medium();  // Haptic feedback for rotation
                 rotateRight();
             }
         }
@@ -2278,6 +2320,6 @@ function restartGame() {
     cancelAnimationFrame(animationFrameId);
     context.clearRect(0, 0, canvas.width, canvas.height);
     nextContext.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('game-container').classList.add('hidden');
     document.getElementById('grid-menu').style.display = 'block';
 }

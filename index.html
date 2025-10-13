@@ -3,9 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tetris</title>
+    <title>Tetris Pro - Jeu Moderne</title>
+    <meta name="description" content="Tetris moderne avec modes multiples, statistiques avancées et replays. Jouez sur n'importe quelle plateforme!">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Tetris Pro">
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="menu-redesign.css">
+    <link rel="stylesheet" href="game-ui.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
@@ -208,119 +215,148 @@
     </div>
 
     <!-- Phase 7 - Stats Modal -->
-    <div id="stats-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
-        <div style="background: white; max-width: 800px; margin: 50px auto; padding: 30px; border-radius: 10px; position: relative;">
-            <button id="close-stats" style="position: absolute; top: 10px; right: 10px; background: #f44336; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 18px;">×</button>
-            <h2 style="text-align: center; margin-bottom: 30px;">📊 Statistiques Détaillées</h2>
-            <div id="stats-content"></div>
+    <div id="stats-modal" class="game-modal">
+        <div class="game-modal__content">
+            <div class="game-modal__header">
+                <h2 class="game-modal__title">📊 Statistiques Détaillées</h2>
+                <button id="close-stats" class="game-modal__close">×</button>
+            </div>
+            <div class="game-modal__body">
+                <div id="stats-content" class="stats-grid"></div>
+            </div>
         </div>
     </div>
 
     <!-- Phase 8 - Settings Modal -->
-    <div id="settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
-        <div style="background: white; max-width: 600px; margin: 50px auto; padding: 30px; border-radius: 10px; position: relative;">
-            <button id="close-settings" style="position: absolute; top: 10px; right: 10px; background: #f44336; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 18px;">×</button>
-            <h2 style="text-align: center; margin-bottom: 30px;">⚙️ Paramètres</h2>
-
-            <div style="margin-bottom: 25px; padding: 20px; border: 2px solid #FF9800; border-radius: 8px;">
-                <h3 style="margin-top: 0; color: #FF9800;">🔊 Audio</h3>
-                <label style="display: block; margin-bottom: 10px;">
-                    Volume: <span id="volume-value">30</span>%
-                    <input type="range" id="volume-slider" min="0" max="100" value="30" style="width: 100%; margin-top: 5px;">
-                </label>
+    <div id="settings-modal" class="game-modal">
+        <div class="game-modal__content">
+            <div class="game-modal__header">
+                <h2 class="game-modal__title">⚙️ Paramètres</h2>
+                <button id="close-settings" class="game-modal__close">×</button>
             </div>
+            <div class="game-modal__body">
+                <div class="settings-panel">
+                    <div class="setting-group">
+                        <h3 class="setting-label" style="color: #FF9800;">🔊 Audio</h3>
+                        <div class="setting-control">
+                            <label style="flex: 1;">
+                                Volume: <span id="volume-value">30</span>%
+                                <input type="range" id="volume-slider" min="0" max="100" value="30" style="width: 100%; margin-top: 5px;">
+                            </label>
+                        </div>
+                    </div>
 
-            <div style="margin-bottom: 25px; padding: 20px; border: 2px solid #2196F3; border-radius: 8px;">
-                <h3 style="margin-top: 0; color: #2196F3;">🎮 Gameplay</h3>
-                <label style="display: block; margin-bottom: 10px;">
-                    <input type="checkbox" id="ghost-piece-toggle" checked> Afficher Ghost Piece
-                </label>
-                <label style="display: block; margin-bottom: 10px;">
-                    <input type="checkbox" id="grid-lines-toggle" checked> Afficher lignes de grille
-                </label>
-                <label style="display: block;">
-                    Vitesse initiale (niveau):
-                    <input type="number" id="start-level" min="1" max="20" value="1" style="width: 60px; margin-left: 10px;">
-                </label>
-            </div>
+                    <div class="setting-group">
+                        <h3 class="setting-label" style="color: #2196F3;">🎮 Gameplay</h3>
+                        <div class="setting-control">
+                            <label style="display: block; margin-bottom: 10px;">
+                                <input type="checkbox" id="ghost-piece-toggle" checked> Afficher Ghost Piece
+                            </label>
+                            <label style="display: block; margin-bottom: 10px;">
+                                <input type="checkbox" id="grid-lines-toggle" checked> Afficher lignes de grille
+                            </label>
+                            <label style="display: block;">
+                                Vitesse initiale (niveau):
+                                <input type="number" id="start-level" min="1" max="20" value="1" style="width: 60px; margin-left: 10px;">
+                            </label>
+                        </div>
+                    </div>
 
-            <div style="margin-bottom: 25px; padding: 20px; border: 2px solid #4CAF50; border-radius: 8px;">
-                <h3 style="margin-top: 0; color: #4CAF50;">♿ Accessibilité</h3>
-                <label style="display: block; margin-bottom: 10px;">
-                    <input type="checkbox" id="colorblind-mode"> Mode Daltonien
-                </label>
-                <label style="display: block;">
-                    <input type="checkbox" id="high-contrast"> Contraste Élevé
-                </label>
-            </div>
+                    <div class="setting-group">
+                        <h3 class="setting-label" style="color: #4CAF50;">♿ Accessibilité</h3>
+                        <div class="setting-control">
+                            <label style="display: block; margin-bottom: 10px;">
+                                <input type="checkbox" id="colorblind-mode"> Mode Daltonien
+                            </label>
+                            <label style="display: block;">
+                                <input type="checkbox" id="high-contrast"> Contraste Élevé
+                            </label>
+                        </div>
+                    </div>
 
-            <div style="text-align: center;">
-                <button id="reset-settings" style="padding: 10px 20px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">Réinitialiser</button>
-                <button id="save-settings" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">Sauvegarder</button>
+                    <div style="text-align: center; margin-top: var(--space-lg);">
+                        <button id="reset-settings" class="replay-btn" style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); margin-right: 10px;">Réinitialiser</button>
+                        <button id="save-settings" class="replay-btn" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);">Sauvegarder</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Phase 10 - Replays Modal -->
-    <div id="replays-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
-        <div style="background: white; max-width: 800px; margin: 50px auto; padding: 30px; border-radius: 10px; position: relative;">
-            <button id="close-replays" style="position: absolute; top: 10px; right: 10px; background: #f44336; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 18px;">×</button>
-            <h2 style="text-align: center; margin-bottom: 30px;">🎬 Replays Enregistrés</h2>
-            <div id="replays-content"></div>
+    <div id="replays-modal" class="game-modal">
+        <div class="game-modal__content">
+            <div class="game-modal__header">
+                <h2 class="game-modal__title">🎬 Replays Enregistrés</h2>
+                <button id="close-replays" class="game-modal__close">×</button>
+            </div>
+            <div class="game-modal__body">
+                <div id="replays-content"></div>
+            </div>
         </div>
     </div>
 
-    <div id="game-container" style="display: none;">
-        <canvas id="tetris" width="300" height="500"></canvas>
+    <div id="game-container" class="hidden">
+        <div class="game-canvas-wrapper">
+            <canvas id="tetris" width="300" height="500"></canvas>
+        </div>
+
         <div id="info">
             <h2>Score: <span id="score">0</span></h2>
             <h2>Niveau: <span id="level">1</span></h2>
-            <h2 id="game-timer" style="display: none;">Temps: <span id="timer">0:00</span></h2>
-            <h2 id="lines-goal" style="display: none;">Lignes: <span id="lines-count">0</span>/40</h2>
-            <h3 id="combo" style="display: none; color: #ff9800; font-weight: bold;">Combo x0</h3>
-            <h3 id="back-to-back" style="display: none; color: #4CAF50; font-weight: bold;">Back-to-Back x0</h3>
-            <h2 id="special-message" style="display: none; color: #FF1493; font-weight: bold; font-size: 18px; margin-top: 20px; text-align: center; animation: pulse 0.5s ease-in-out;"></h2>
+            <h2 id="game-timer" class="hidden">Temps: <span id="timer">0:00</span></h2>
+            <h2 id="lines-goal" class="hidden">Lignes: <span id="lines-count">0</span>/40</h2>
+            <h3 id="combo" class="hidden" style="color: #ff9800;">Combo x0</h3>
+            <h3 id="back-to-back" class="hidden" style="color: #4CAF50;">Back-to-Back x0</h3>
 
             <!-- Phase 9 - Competitive Metrics -->
-            <div id="metrics-panel" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 8px;">
-                <h3 style="margin: 0 0 10px 0; text-align: center; font-size: 16px;">Métriques</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px;">
-                    <div style="text-align: center;">
-                        <strong>PPS</strong><br>
-                        <span id="metric-pps" style="font-size: 18px; color: #2196F3;">0.00</span>
-                    </div>
-                    <div style="text-align: center;">
-                        <strong>APM</strong><br>
-                        <span id="metric-apm" style="font-size: 18px; color: #4CAF50;">0</span>
-                    </div>
-                    <div style="text-align: center;">
-                        <strong>KPP</strong><br>
-                        <span id="metric-kpp" style="font-size: 18px; color: #FF9800;">0.00</span>
-                    </div>
-                    <div style="text-align: center;">
-                        <strong>Efficiency</strong><br>
-                        <span id="metric-efficiency" style="font-size: 18px; color: #9C27B0;">0%</span>
-                    </div>
+            <div id="metrics-panel" class="metrics-panel">
+                <div class="metric-item">
+                    <span class="metric-label">PPS</span>
+                    <span id="metric-pps" class="metric-value" style="color: #2196F3;">0.00</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">APM</span>
+                    <span id="metric-apm" class="metric-value" style="color: #4CAF50;">0</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">KPP</span>
+                    <span id="metric-kpp" class="metric-value" style="color: #FF9800;">0.00</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Efficiency</span>
+                    <span id="metric-efficiency" class="metric-value" style="color: #9C27B0;">0%</span>
                 </div>
             </div>
 
-            <canvas id="hold" width="120" height="120"></canvas>
-            <p>Hold (C ou Shift)</p>
-            <canvas id="next" width="120" height="240"></canvas>
-            <p>Prochaines pièces</p>
-            <!-- Phase 10 - Replay controls -->
-            <div id="replay-controls" style="display: none; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #9C27B0 0%, #673AB7 100%); border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                <h3 style="margin: 0 0 10px 0; text-align: center; color: white; font-size: 16px;">🎬 Mode Replay</h3>
-                <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 10px;">
-                    <button id="replay-pause" style="padding: 10px 15px; background: #FF9800; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;"><i id="replay-pause-icon" class="fas fa-pause"></i></button>
-                    <button id="replay-stop" style="padding: 10px 15px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;"><i class="fas fa-stop"></i></button>
+            <div class="preview-container">
+                <div class="preview-box">
+                    <h3>Hold</h3>
+                    <canvas id="hold" width="120" height="120"></canvas>
+                    <p style="font-size: var(--font-size-sm); margin: 0;">C ou Shift</p>
                 </div>
-                <div style="text-align: center; color: white; font-size: 12px; margin-bottom: 5px;">Vitesse:</div>
-                <div style="display: flex; gap: 5px; justify-content: center;">
-                    <button class="speed-btn" data-speed="0.5" style="padding: 5px 10px; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">0.5x</button>
-                    <button class="speed-btn" data-speed="1" style="padding: 5px 10px; background: #9C27B0; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">1x</button>
-                    <button class="speed-btn" data-speed="2" style="padding: 5px 10px; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">2x</button>
-                    <button class="speed-btn" data-speed="4" style="padding: 5px 10px; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">4x</button>
+                <div class="preview-box">
+                    <h3>Prochaines</h3>
+                    <canvas id="next" width="120" height="240"></canvas>
+                </div>
+            </div>
+            <!-- Phase 10 - Replay controls -->
+            <div id="replay-controls" class="replay-controls hidden">
+                <h3 style="margin: 0 0 var(--space-sm) 0; text-align: center; font-size: var(--font-size-base);">🎬 Mode Replay</h3>
+                <div style="display: flex; gap: var(--space-md); justify-content: center; margin-bottom: var(--space-sm);">
+                    <button id="replay-pause" class="replay-btn" style="background: linear-gradient(135deg, #FF9800 0%, #f57c00 100%);">
+                        <i id="replay-pause-icon" class="fas fa-pause"></i>
+                    </button>
+                    <button id="replay-stop" class="replay-btn" style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                </div>
+                <div style="text-align: center; font-size: var(--font-size-sm); margin-bottom: var(--space-xs);">Vitesse:</div>
+                <div class="replay-speed-selector">
+                    <button class="replay-speed-btn" data-speed="0.5">0.5x</button>
+                    <button class="replay-speed-btn active" data-speed="1">1x</button>
+                    <button class="replay-speed-btn" data-speed="2">2x</button>
+                    <button class="replay-speed-btn" data-speed="4">4x</button>
                 </div>
             </div>
 
@@ -376,6 +412,7 @@
     </style>
 
     <script src="menu-interactions.js"></script>
+    <script src="game-orientation.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
