@@ -163,8 +163,111 @@ function displayHighScores() {
     scoresList.innerHTML = html;
 }
 
+// Phase 7 - Display stats
+function displayStats() {
+    const statsContent = document.getElementById('stats-content');
+    const pieceNames = ['I', 'O', 'T', 'S', 'Z', 'L', 'J'];
+
+    let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">';
+
+    // Statistiques générales
+    html += '<div style="border: 2px solid #2196F3; padding: 15px; border-radius: 8px;">';
+    html += '<h3 style="color: #2196F3; margin-top: 0;">🎮 Général</h3>';
+    html += `<p><strong>Total parties:</strong> ${gameStats.totalGames}</p>`;
+    html += `<p><strong>Victoires:</strong> ${gameStats.gamesWon}</p>`;
+    html += `<p><strong>Défaites:</strong> ${gameStats.gamesLost}</p>`;
+    html += `<p><strong>Win rate:</strong> ${gameStats.totalGames > 0 ? ((gameStats.gamesWon / gameStats.totalGames) * 100).toFixed(1) : 0}%</p>`;
+    html += `<p><strong>Temps total:</strong> ${formatTime(gameStats.totalPlayTime)}</p>`;
+    html += '</div>';
+
+    // Statistiques de performance
+    html += '<div style="border: 2px solid #4CAF50; padding: 15px; border-radius: 8px;">';
+    html += '<h3 style="color: #4CAF50; margin-top: 0;">⭐ Performance</h3>';
+    html += `<p><strong>Score total:</strong> ${gameStats.totalScore.toLocaleString()}</p>`;
+    html += `<p><strong>Lignes totales:</strong> ${gameStats.totalLines}</p>`;
+    html += `<p><strong>Score moyen:</strong> ${gameStats.totalGames > 0 ? Math.floor(gameStats.totalScore / gameStats.totalGames).toLocaleString() : 0}</p>`;
+    html += `<p><strong>Lignes/partie:</strong> ${gameStats.totalGames > 0 ? (gameStats.totalLines / gameStats.totalGames).toFixed(1) : 0}</p>`;
+    html += '</div>';
+
+    // Records
+    html += '<div style="border: 2px solid #FF9800; padding: 15px; border-radius: 8px;">';
+    html += '<h3 style="color: #FF9800; margin-top: 0;">🏆 Records</h3>';
+    html += `<p><strong>Meilleur combo:</strong> x${gameStats.highestCombo}</p>`;
+    html += `<p><strong>Meilleur B2B:</strong> x${gameStats.highestBackToBack}</p>`;
+    html += `<p><strong>Sprint le plus rapide:</strong> ${gameStats.fastestSprint === Infinity ? 'N/A' : formatTime(gameStats.fastestSprint)}</p>`;
+    html += '</div>';
+
+    // Spéciaux
+    html += '<div style="border: 2px solid #9C27B0; padding: 15px; border-radius: 8px;">';
+    html += '<h3 style="color: #9C27B0; margin-top: 0;">✨ Spéciaux</h3>';
+    html += `<p><strong>Total Tetris:</strong> ${gameStats.totalTetrises}</p>`;
+    html += `<p><strong>Total T-Spins:</strong> ${gameStats.totalTSpins}</p>`;
+    html += `<p><strong>Perfect Clears:</strong> ${gameStats.totalPerfectClears}</p>`;
+    html += '</div>';
+
+    html += '</div>';
+
+    // Statistiques par pièce
+    html += '<div style="margin-top: 20px; border: 2px solid #00BCD4; padding: 15px; border-radius: 8px;">';
+    html += '<h3 style="color: #00BCD4; margin-top: 0;">🎲 Pièces Utilisées</h3>';
+    html += '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; text-align: center;">';
+
+    const totalPieces = gameStats.pieceStats.reduce((a, b) => a + b, 0);
+    gameStats.pieceStats.forEach((count, index) => {
+        const percentage = totalPieces > 0 ? ((count / totalPieces) * 100).toFixed(1) : 0;
+        html += `<div style="background: ${COLORS[index]}; color: white; padding: 10px; border-radius: 5px;">`;
+        html += `<strong>${pieceNames[index]}</strong><br>`;
+        html += `${count}<br>`;
+        html += `<small>${percentage}%</small>`;
+        html += `</div>`;
+    });
+
+    html += '</div>';
+    html += '</div>';
+
+    // Phase 7 - Achievements section
+    html += '<div style="margin-top: 20px; border: 2px solid #9C27B0; padding: 15px; border-radius: 8px;">';
+    html += '<h3 style="color: #9C27B0; margin-top: 0;">🏆 Achievements (' + unlockedAchievements.length + '/' + ACHIEVEMENTS.length + ')</h3>';
+    html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">';
+
+    ACHIEVEMENTS.forEach(achievement => {
+        const unlocked = unlockedAchievements.includes(achievement.id);
+        const opacity = unlocked ? '1' : '0.3';
+        const bgColor = unlocked ? '#4CAF50' : '#ccc';
+
+        html += `<div style="background: ${bgColor}; color: white; padding: 15px; border-radius: 8px; opacity: ${opacity};">`;
+        html += `<div style="font-size: 32px; text-align: center; margin-bottom: 5px;">${achievement.icon}</div>`;
+        html += `<div style="font-weight: bold; text-align: center; margin-bottom: 3px;">${achievement.name}</div>`;
+        html += `<div style="font-size: 12px; text-align: center;">${achievement.desc}</div>`;
+        html += `</div>`;
+    });
+
+    html += '</div>';
+    html += '</div>';
+
+    statsContent.innerHTML = html;
+}
+
+// Phase 7 - Event listeners for stats modal
+document.getElementById('view-stats').addEventListener('click', () => {
+    displayStats();
+    document.getElementById('stats-modal').style.display = 'block';
+});
+
+document.getElementById('close-stats').addEventListener('click', () => {
+    document.getElementById('stats-modal').style.display = 'none';
+});
+
+// Close on backdrop click
+document.getElementById('stats-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'stats-modal') {
+        document.getElementById('stats-modal').style.display = 'none';
+    }
+});
+
 // Appeler au chargement de la page
 displayHighScores();
+loadStats(); // Phase 7 - Load stats
 
 const TETROMINOES = [
     [[1, 1, 1, 1]], // I
@@ -224,6 +327,12 @@ function createPiece() {
     }
     const typeId = pieceBag.pop();
     const piece = TETROMINOES[typeId];
+
+    // Phase 7 - Track piece stats
+    if (gameStats.pieceStats) {
+        gameStats.pieceStats[typeId]++;
+    }
+
     return {
         x: Math.floor(COLS / 2) - Math.floor(piece[0].length / 2),
         y: 0,
@@ -598,6 +707,7 @@ function gameOver() {
 
     const playTime = Math.floor((Date.now() - gameStartTime) / 1000);
     saveHighScore(score, linesCleared, level, playTime);
+    updateGameStats(); // Phase 7 - Update stats
 
     board.forEach(row => row.fill(0));
     alert(`Game Over!\n\nScore: ${score}\nLignes: ${linesCleared}\nNiveau: ${level}\nTemps: ${formatTime(playTime)}`);
@@ -611,6 +721,7 @@ function victoryScreen() {
 
     const playTime = Math.floor((Date.now() - gameStartTime) / 1000);
     saveHighScore(score, linesCleared, level, playTime);
+    updateGameStats(); // Phase 7 - Update stats
 
     let message = '';
     if (gameMode === 'sprint') {
@@ -859,12 +970,15 @@ function actuallyRemoveLines() {
         pointsEarned += perfectClearBonus;
         showSpecialMessage('PERFECT CLEAR! +' + perfectClearBonus);
         audioManager.playPerfectClear(); // Phase 6 - Play sound
+        gameStats.totalPerfectClears++; // Phase 7 - Track perfect clears
     } else if (isTSpin && linesThisTurn > 0) {
         showSpecialMessage(actionName + '! +' + pointsEarned);
         audioManager.playTSpin(); // Phase 6 - Play sound
+        gameStats.totalTSpins++; // Phase 7 - Track T-Spins
     } else if (linesThisTurn === 4) {
         showSpecialMessage(actionName + '! +' + pointsEarned);
         audioManager.playTetris(); // Phase 6 - Play sound
+        gameStats.totalTetrises++; // Phase 7 - Track Tetrises
     } else if (linesThisTurn > 0) {
         audioManager.playLineClear(linesThisTurn); // Phase 6 - Play sound
     }
@@ -1035,6 +1149,153 @@ class AudioManager {
 }
 
 const audioManager = new AudioManager();
+
+// Phase 7 - Statistiques détaillées
+let gameStats = {
+    totalGames: 0,
+    totalLines: 0,
+    totalScore: 0,
+    totalPlayTime: 0, // en secondes
+    pieceStats: [0, 0, 0, 0, 0, 0, 0], // Count pour chaque tetromino (I, O, T, S, Z, L, J)
+    highestCombo: 0,
+    highestBackToBack: 0,
+    totalTSpins: 0,
+    totalPerfectClears: 0,
+    totalTetrises: 0,
+    fastestSprint: Infinity, // en secondes
+    gamesWon: 0,
+    gamesLost: 0
+};
+
+// Phase 7 - Achievements system
+const ACHIEVEMENTS = [
+    { id: 'first_game', name: 'Premier Pas', desc: 'Jouer une première partie', icon: '🎮', check: () => gameStats.totalGames >= 1 },
+    { id: 'games_10', name: 'Joueur Régulier', desc: 'Jouer 10 parties', icon: '🎯', check: () => gameStats.totalGames >= 10 },
+    { id: 'games_100', name: 'Vétéran', desc: 'Jouer 100 parties', icon: '⭐', check: () => gameStats.totalGames >= 100 },
+    { id: 'first_tetris', name: 'Premier Tetris', desc: 'Réaliser un Tetris', icon: '🔷', check: () => gameStats.totalTetrises >= 1 },
+    { id: 'tetris_master', name: 'Maître du Tetris', desc: 'Réaliser 50 Tetris', icon: '💎', check: () => gameStats.totalTetrises >= 50 },
+    { id: 'first_tspin', name: 'T-Spin Novice', desc: 'Réaliser un T-Spin', icon: '🔄', check: () => gameStats.totalTSpins >= 1 },
+    { id: 'tspin_expert', name: 'Expert T-Spin', desc: 'Réaliser 25 T-Spins', icon: '🌀', check: () => gameStats.totalTSpins >= 25 },
+    { id: 'perfect_clear', name: 'Perfection', desc: 'Réaliser un Perfect Clear', icon: '✨', check: () => gameStats.totalPerfectClears >= 1 },
+    { id: 'combo_5', name: 'Combo Warrior', desc: 'Réaliser un combo x5', icon: '🔥', check: () => gameStats.highestCombo >= 5 },
+    { id: 'combo_10', name: 'Combo Master', desc: 'Réaliser un combo x10', icon: '💥', check: () => gameStats.highestCombo >= 10 },
+    { id: 'lines_100', name: 'Centurion', desc: 'Clearer 100 lignes (total)', icon: '📏', check: () => gameStats.totalLines >= 100 },
+    { id: 'lines_1000', name: 'Millénaire', desc: 'Clearer 1000 lignes (total)', icon: '📐', check: () => gameStats.totalLines >= 1000 },
+    { id: 'score_10k', name: 'Score Solide', desc: 'Atteindre 10 000 points (total)', icon: '🏅', check: () => gameStats.totalScore >= 10000 },
+    { id: 'score_100k', name: 'Score Légendaire', desc: 'Atteindre 100 000 points (total)', icon: '🏆', check: () => gameStats.totalScore >= 100000 },
+    { id: 'sprint_fast', name: 'Sprinter', desc: 'Finir Sprint en moins de 2 min', icon: '⚡', check: () => gameStats.fastestSprint <= 120 },
+    { id: 'sprint_pro', name: 'Pro Sprint', desc: 'Finir Sprint en moins de 1 min', icon: '🚀', check: () => gameStats.fastestSprint <= 60 },
+    { id: 'time_1h', name: 'Marathonien', desc: 'Jouer 1h au total', icon: '⏰', check: () => gameStats.totalPlayTime >= 3600 },
+    { id: 'time_10h', name: 'Accro', desc: 'Jouer 10h au total', icon: '🕐', check: () => gameStats.totalPlayTime >= 36000 },
+    { id: 'win_10', name: 'Gagnant Né', desc: 'Gagner 10 parties', icon: '🎊', check: () => gameStats.gamesWon >= 10 },
+    { id: 'win_50', name: 'Champion', desc: 'Gagner 50 parties', icon: '👑', check: () => gameStats.gamesWon >= 50 }
+];
+
+let unlockedAchievements = [];
+
+// Phase 7 - Load achievements from localStorage
+function loadAchievements() {
+    const saved = localStorage.getItem('tetrisAchievements');
+    if (saved) {
+        unlockedAchievements = JSON.parse(saved);
+    }
+}
+
+// Phase 7 - Save achievements to localStorage
+function saveAchievements() {
+    localStorage.setItem('tetrisAchievements', JSON.stringify(unlockedAchievements));
+}
+
+// Phase 7 - Check for new achievements
+function checkAchievements() {
+    const newlyUnlocked = [];
+
+    ACHIEVEMENTS.forEach(achievement => {
+        if (!unlockedAchievements.includes(achievement.id) && achievement.check()) {
+            unlockedAchievements.push(achievement.id);
+            newlyUnlocked.push(achievement);
+        }
+    });
+
+    if (newlyUnlocked.length > 0) {
+        saveAchievements();
+        // Show notifications for new achievements
+        newlyUnlocked.forEach((achievement, index) => {
+            setTimeout(() => {
+                showAchievementNotification(achievement);
+            }, index * 2500); // Stagger notifications
+        });
+    }
+}
+
+// Phase 7 - Show achievement notification
+function showAchievementNotification(achievement) {
+    const notification = document.getElementById('achievement-notification');
+    const icon = document.getElementById('achievement-icon');
+    const name = document.getElementById('achievement-name');
+    const desc = document.getElementById('achievement-desc');
+
+    icon.innerText = achievement.icon;
+    name.innerText = achievement.name;
+    desc.innerText = achievement.desc;
+
+    notification.style.display = 'block';
+    notification.style.animation = 'slideIn 0.5s ease-out';
+
+    // Hide after 2 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.5s ease-out';
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 500);
+    }, 2000);
+}
+
+// Phase 7 - Load stats from localStorage
+function loadStats() {
+    const saved = localStorage.getItem('tetrisStats');
+    if (saved) {
+        gameStats = JSON.parse(saved);
+    }
+    loadAchievements(); // Also load achievements
+}
+
+// Phase 7 - Save stats to localStorage
+function saveStats() {
+    localStorage.setItem('tetrisStats', JSON.stringify(gameStats));
+}
+
+// Phase 7 - Update stats
+function updateGameStats() {
+    const playTime = Math.floor((Date.now() - gameStartTime) / 1000);
+    gameStats.totalGames++;
+    gameStats.totalLines += linesCleared;
+    gameStats.totalScore += score;
+    gameStats.totalPlayTime += playTime;
+
+    if (combo > gameStats.highestCombo) {
+        gameStats.highestCombo = combo;
+    }
+
+    if (backToBack > gameStats.highestBackToBack) {
+        gameStats.highestBackToBack = backToBack;
+    }
+
+    // Sprint record
+    if (gameMode === 'sprint' && linesCleared >= sprintGoal) {
+        if (playTime < gameStats.fastestSprint) {
+            gameStats.fastestSprint = playTime;
+        }
+        gameStats.gamesWon++;
+    } else if (gameMode === 'ultra') {
+        gameStats.gamesWon++;
+    } else {
+        gameStats.gamesLost++;
+    }
+
+    saveStats();
+    checkAchievements(); // Phase 7 - Check for new achievements
+}
 
 function update(time = 0) {
     if (isPaused) return;
