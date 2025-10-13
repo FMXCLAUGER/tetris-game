@@ -105,6 +105,11 @@ function initGame(gridType) {
     isPaused = false;
     lastTime = 0;
     dropCounter = 0;
+
+    // Phase 10 - Start recording replay
+    const replaySeed = Date.now();
+    startRecording(replaySeed, gameMode, gridType);
+
     requestAnimationFrame(update);
 }
 
@@ -332,6 +337,11 @@ function createPiece() {
     // Phase 7 - Track piece stats
     if (gameStats.pieceStats) {
         gameStats.pieceStats[typeId]++;
+    }
+
+    // Phase 10 - Record piece in replay
+    if (isRecording && currentReplay) {
+        currentReplay.recordPiece(typeId);
     }
 
     return {
@@ -713,6 +723,7 @@ function gameOver() {
     audioManager.playGameOver(); // Phase 6 - Play sound
 
     const playTime = Math.floor((Date.now() - gameStartTime) / 1000);
+    stopRecording(); // Phase 10 - Stop recording replay
     saveHighScore(score, linesCleared, level, playTime);
     updateGameStats(); // Phase 7 - Update stats
 
@@ -727,6 +738,7 @@ function victoryScreen() {
     cancelAnimationFrame(animationFrameId);
 
     const playTime = Math.floor((Date.now() - gameStartTime) / 1000);
+    stopRecording(); // Phase 10 - Stop recording replay
     saveHighScore(score, linesCleared, level, playTime);
     updateGameStats(); // Phase 7 - Update stats
 
@@ -1167,6 +1179,115 @@ let gameSettings = {
     highContrast: false
 };
 
+// Phase 10 - Replay System
+let isRecording = false;
+let isReplaying = false;
+let replayData = null;
+let currentReplay = null;
+let replayStartTime = 0;
+let replayInputIndex = 0;
+let replaySpeed = 1.0; // 1x speed by default
+
+// Phase 10 - Replay structure
+class Replay {
+    constructor(seed, gameMode, gridType) {
+        this.seed = seed;
+        this.gameMode = gameMode;
+        this.gridType = gridType;
+        this.inputs = [];
+        this.pieces = []; // Record piece sequence
+        this.startTime = Date.now();
+        this.metadata = {
+            score: 0,
+            lines: 0,
+            level: 1,
+            duration: 0,
+            date: new Date().toISOString(),
+            version: '1.0'
+        };
+    }
+
+    recordInput(action, data = null) {
+        const timestamp = Date.now() - this.startTime;
+        this.inputs.push({ time: timestamp, action, data });
+    }
+
+    recordPiece(typeId) {
+        this.pieces.push(typeId);
+    }
+
+    finalize(score, lines, level, duration) {
+        this.metadata.score = score;
+        this.metadata.lines = lines;
+        this.metadata.level = level;
+        this.metadata.duration = duration;
+    }
+
+    toJSON() {
+        return {
+            seed: this.seed,
+            gameMode: this.gameMode,
+            gridType: this.gridType,
+            inputs: this.inputs,
+            pieces: this.pieces,
+            metadata: this.metadata
+        };
+    }
+
+    static fromJSON(json) {
+        const replay = new Replay(json.seed, json.gameMode, json.gridType);
+        replay.inputs = json.inputs;
+        replay.pieces = json.pieces || [];
+        replay.metadata = json.metadata;
+        replay.startTime = 0;
+        return replay;
+    }
+}
+
+// Phase 10 - Replay storage functions
+function saveReplays() {
+    const replays = getAllReplays();
+    localStorage.setItem('tetrisReplays', JSON.stringify(replays));
+}
+
+function getAllReplays() {
+    const saved = localStorage.getItem('tetrisReplays');
+    return saved ? JSON.parse(saved) : [];
+}
+
+function addReplay(replay) {
+    let replays = getAllReplays();
+    replays.unshift(replay.toJSON()); // Add to beginning
+
+    // Keep only top 10 replays by score
+    replays.sort((a, b) => b.metadata.score - a.metadata.score);
+    replays = replays.slice(0, 10);
+
+    localStorage.setItem('tetrisReplays', JSON.stringify(replays));
+}
+
+function startRecording(seed, gameMode, gridType) {
+    currentReplay = new Replay(seed, gameMode, gridType);
+    isRecording = true;
+    isReplaying = false;
+}
+
+function stopRecording() {
+    if (currentReplay && isRecording) {
+        const duration = Math.floor((Date.now() - currentReplay.startTime) / 1000);
+        currentReplay.finalize(score, linesCleared, level, duration);
+        addReplay(currentReplay);
+    }
+    isRecording = false;
+    currentReplay = null;
+}
+
+function recordInput(action, data = null) {
+    if (isRecording && currentReplay) {
+        currentReplay.recordInput(action, data);
+    }
+}
+
 // Phase 8 - Load settings from localStorage
 function loadSettings() {
     const saved = localStorage.getItem('tetrisSettings');
@@ -1343,6 +1464,66 @@ document.getElementById('save-settings').addEventListener('click', () => {
     saveSettings();
     alert('Paramètres sauvegardés !');
     document.getElementById('settings-modal').style.display = 'none';
+});
+
+// Phase 10 - Replay viewer functions
+function displayReplays() {
+    const replays = getAllReplays();
+    const replaysContent = document.getElementById('replays-content');
+
+    if (replays.length === 0) {
+        replaysContent.innerHTML = '<p style="text-align: center; color: #666;">Aucun replay enregistré. Jouez une partie pour créer votre premier replay !</p>';
+        return;
+    }
+
+    let html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+
+    replays.forEach((replay, index) => {
+        const date = new Date(replay.metadata.date);
+        const dateStr = date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR');
+
+        const modeLabel = replay.gameMode === 'marathon' ? 'Marathon' :
+                          replay.gameMode === 'sprint' ? 'Sprint' : 'Ultra';
+
+        const gridLabel = replay.gridType === 'standard' ? '10×20' :
+                          replay.gridType === 'square' ? '15×15' :
+                          replay.gridType === 'wide' ? '25×15' :
+                          replay.gridType === 'tall' ? '8×25' : '8×12';
+
+        html += `<div style="border: 2px solid #9C27B0; padding: 15px; border-radius: 8px; background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);">`;
+        html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
+        html += `<div>`;
+        html += `<h3 style="margin: 0 0 10px 0; color: #9C27B0;">🎬 Replay #${index + 1}</h3>`;
+        html += `<p style="margin: 5px 0;"><strong>Score:</strong> ${replay.metadata.score.toLocaleString()}</p>`;
+        html += `<p style="margin: 5px 0;"><strong>Lignes:</strong> ${replay.metadata.lines} | <strong>Niveau:</strong> ${replay.metadata.level}</p>`;
+        html += `<p style="margin: 5px 0;"><strong>Mode:</strong> ${modeLabel} | <strong>Grille:</strong> ${gridLabel}</p>`;
+        html += `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Date:</strong> ${dateStr}</p>`;
+        html += `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Durée:</strong> ${formatTime(replay.metadata.duration)}</p>`;
+        html += `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Inputs:</strong> ${replay.inputs.length} actions | <strong>Pièces:</strong> ${replay.pieces.length}</p>`;
+        html += `</div>`;
+        html += `</div>`;
+        html += `</div>`;
+    });
+
+    html += '</div>';
+    replaysContent.innerHTML = html;
+}
+
+// Phase 10 - Event listeners for replays modal
+document.getElementById('view-replays').addEventListener('click', () => {
+    displayReplays();
+    document.getElementById('replays-modal').style.display = 'block';
+});
+
+document.getElementById('close-replays').addEventListener('click', () => {
+    document.getElementById('replays-modal').style.display = 'none';
+});
+
+// Close on backdrop click
+document.getElementById('replays-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'replays-modal') {
+        document.getElementById('replays-modal').style.display = 'none';
+    }
 });
 
 // Phase 7 - Statistiques détaillées
@@ -1639,6 +1820,7 @@ document.addEventListener('keydown', event => {
 
     if (!isPaused) {
         if (key === 'ArrowLeft' || key === 'UIKeyInputLeftArrow') {
+            recordInput('moveLeft'); // Phase 10 - Record input
             piece.x--;
             if (collide(piece.shape)) {
                 piece.x++;
@@ -1648,6 +1830,7 @@ document.addEventListener('keydown', event => {
                 totalMoves++; // Phase 9 - Track moves
             }
         } else if (key === 'ArrowRight' || key === 'UIKeyInputRightArrow') {
+            recordInput('moveRight'); // Phase 10 - Record input
             piece.x++;
             if (collide(piece.shape)) {
                 piece.x--;
@@ -1657,6 +1840,7 @@ document.addEventListener('keydown', event => {
                 totalMoves++; // Phase 9 - Track moves
             }
         } else if (key === 'ArrowDown' || key === 'UIKeyInputDownArrow') {
+            recordInput('softDrop'); // Phase 10 - Record input
             piece.y++;
             if (collide(piece.shape)) {
                 piece.y--;
@@ -1666,10 +1850,13 @@ document.addEventListener('keydown', event => {
                 lastMoveWasRotation = false; // Reset rotation flag on movement
             }
         } else if (key === 'ArrowUp' || key === 'UIKeyInputUpArrow') {
+            recordInput('rotateRight'); // Phase 10 - Record input
             rotateRight();
         } else if (key === ' ') {
+            recordInput('hardDrop'); // Phase 10 - Record input
             hardDrop();
         } else if (key === 'c' || key === 'C' || key === 'Shift') {
+            recordInput('hold'); // Phase 10 - Record input
             holdCurrentPiece();
         }
     }
