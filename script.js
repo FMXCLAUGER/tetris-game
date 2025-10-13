@@ -480,13 +480,14 @@ let touchStartY = null;
 // Seuil minimum pour détecter un swipe (évite les mouvements accidentels)
 const SWIPE_THRESHOLD = 30;
 
-document.addEventListener('touchstart', (e) => {
+// Attacher les touch listeners UNIQUEMENT au canvas pour ne pas bloquer les boutons HTML
+canvas.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
-    e.preventDefault(); // Empêche le scroll
+    e.preventDefault(); // Empêche le scroll sur le canvas uniquement
 }, {passive: false}); // Requis pour preventDefault() sur iOS Safari 11.3+
 
-document.addEventListener('touchend', (e) => {
+canvas.addEventListener('touchend', (e) => {
     if (!touchStartX || !touchStartY) return;
 
     const touchEndX = e.changedTouches[0].clientX;
