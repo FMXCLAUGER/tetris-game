@@ -34,30 +34,29 @@ function initGame(gridType) {
     COLS = config.cols;
     BLOCK_SIZE = calculateBlockSize(ROWS, COLS);
 
-    // Ajuster les dimensions du canvas principal
     canvas.width = COLS * BLOCK_SIZE;
     canvas.height = ROWS * BLOCK_SIZE;
 
-    // Ajuster les dimensions du canvas de la prochaine pièce
     nextCanvas.width = 4 * NEXT_BLOCK_SIZE;
-    nextCanvas.height = 4 * NEXT_BLOCK_SIZE;
+    nextCanvas.height = 8 * NEXT_BLOCK_SIZE;
 
-    // Réinitialiser le contexte avec la nouvelle échelle
     context.scale(BLOCK_SIZE, BLOCK_SIZE);
     nextContext.scale(NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
 
-    // Réinitialiser le jeu
     board = createBoard();
     score = 0;
+    level = 1;
+    linesCleared = 0;
+    dropInterval = 1000;
+    pieceBag = [];
     updateScore();
+    updateLevel();
     piece = createPiece();
-    nextPiece = createPiece();
-    
-    // Afficher le conteneur de jeu
+    initNextQueue();
+
     document.getElementById('game-container').style.display = 'flex';
     document.getElementById('grid-menu').style.display = 'none';
 
-    // Démarrer le jeu
     isPaused = false;
     lastTime = 0;
     dropCounter = 0;
@@ -91,13 +90,25 @@ const COLORS = [
     '#FFA500'   // Orange pour J
 ];
 
+let pieceBag = [];
+
 function createBoard() {
     return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
 }
 
-// Modifier createPiece pour tenir compte de la largeur de la grille
+function fillBag() {
+    pieceBag = [0, 1, 2, 3, 4, 5, 6];
+    for (let i = pieceBag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pieceBag[i], pieceBag[j]] = [pieceBag[j], pieceBag[i]];
+    }
+}
+
 function createPiece() {
-    const typeId = Math.floor(Math.random() * TETROMINOES.length);
+    if (pieceBag.length === 0) {
+        fillBag();
+    }
+    const typeId = pieceBag.pop();
     const piece = TETROMINOES[typeId];
     return {
         x: Math.floor(COLS / 2) - Math.floor(piece[0].length / 2),
@@ -108,18 +119,48 @@ function createPiece() {
     };
 }
 
+function drawGhostPiece() {
+    let ghostY = piece.y;
+    while (!collide(piece.shape, piece.x, ghostY + 1)) {
+        ghostY++;
+    }
+
+    const blockSize = 0.8;
+    const padding = (1 - blockSize) / 2;
+
+    piece.shape.forEach((row, y) => {
+        row.forEach((value, x) => {
+            if (value !== 0) {
+                context.fillStyle = 'rgba(150, 150, 150, 0.3)';
+                context.fillRect(
+                    x + piece.x + padding,
+                    y + ghostY + padding,
+                    blockSize,
+                    blockSize
+                );
+                context.strokeStyle = '#888888';
+                context.lineWidth = 0.05;
+                context.strokeRect(
+                    x + piece.x + padding,
+                    y + ghostY + padding,
+                    blockSize,
+                    blockSize
+                );
+            }
+        });
+    });
+}
+
 function draw() {
-    // Fond blanc
     context.fillStyle = '#FFFFFF';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Dessiner le plateau de jeu avec une bordure
     context.strokeStyle = '#000000';
     context.lineWidth = 0.1;
     context.strokeRect(0, 0, COLS, ROWS);
 
-    // Dessiner les pièces fixes et la pièce active
     drawMatrix(board, { x: 0, y: 0 });
+    drawGhostPiece();
     drawMatrix(piece.shape, { x: piece.x, y: piece.y }, piece.color);
 }
 
@@ -179,46 +220,52 @@ function drawMatrix(matrix, offset, color) {
     }
 }
 
-function drawNextPiece() {
-    // Effacer le canvas de la prochaine pièce
+function initNextQueue() {
+    nextPieces = [];
+    for (let i = 0; i < 2; i++) {
+        nextPieces.push(createPiece());
+    }
+}
+
+function drawNextQueue() {
     nextContext.fillStyle = '#FFFFFF';
     nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
 
-    const shape = nextPiece.shape;
-    const color = nextPiece.color;
+    const pieceHeight = (nextCanvas.height / NEXT_BLOCK_SIZE) / 2;
 
-    // Ajuster l'échelle pour la prochaine pièce
-    const scale = Math.min(
-        (nextCanvas.width / NEXT_BLOCK_SIZE) / shape[0].length,
-        (nextCanvas.height / NEXT_BLOCK_SIZE) / shape.length
-    ) * 0.8;
+    nextPieces.forEach((nextPiece, index) => {
+        const shape = nextPiece.shape;
+        const color = nextPiece.color;
 
-    // Centrer la pièce
-    const xOffset = ((nextCanvas.width / NEXT_BLOCK_SIZE) - (shape[0].length * scale)) / 2;
-    const yOffset = ((nextCanvas.height / NEXT_BLOCK_SIZE) - (shape.length * scale)) / 2;
+        const scale = Math.min(
+            (nextCanvas.width / NEXT_BLOCK_SIZE) / shape[0].length,
+            pieceHeight / shape.length
+        ) * 0.6;
 
-    shape.forEach((row, y) => {
-        row.forEach((value, x) => {
-            if (value !== 0) {
-                // Dessiner le bloc
-                nextContext.fillStyle = color;
-                nextContext.fillRect(
-                    (x * scale) + xOffset,
-                    (y * scale) + yOffset,
-                    scale * 0.9,
-                    scale * 0.9
-                );
+        const xOffset = ((nextCanvas.width / NEXT_BLOCK_SIZE) - (shape[0].length * scale)) / 2;
+        const yOffset = (index * pieceHeight) + ((pieceHeight - (shape.length * scale)) / 2);
 
-                // Ajouter une bordure
-                nextContext.strokeStyle = '#000000';
-                nextContext.lineWidth = scale * 0.1;
-                nextContext.strokeRect(
-                    (x * scale) + xOffset,
-                    (y * scale) + yOffset,
-                    scale * 0.9,
-                    scale * 0.9
-                );
-            }
+        shape.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value !== 0) {
+                    nextContext.fillStyle = color;
+                    nextContext.fillRect(
+                        (x * scale) + xOffset,
+                        (y * scale) + yOffset,
+                        scale * 0.9,
+                        scale * 0.9
+                    );
+
+                    nextContext.strokeStyle = '#000000';
+                    nextContext.lineWidth = scale * 0.1;
+                    nextContext.strokeRect(
+                        (x * scale) + xOffset,
+                        (y * scale) + yOffset,
+                        scale * 0.9,
+                        scale * 0.9
+                    );
+                }
+            });
         });
     });
 }
@@ -266,10 +313,11 @@ function rotateRight() {
 }
 
 function tryRotate(newShape) {
+    const originalShape = piece.shape;
     const pos = piece.x;
     let offset = 1;
     piece.shape = newShape;
-    
+
     while (collide(piece.shape)) {
         piece.x += offset;
         offset = -(offset + (offset > 0 ? 1 : -1));
@@ -294,12 +342,25 @@ function pieceDrop() {
     dropCounter = 0;
 }
 
-function collide(shape) {
+function hardDrop() {
+    let dropDistance = 0;
+    while (!collide(piece.shape, piece.x, piece.y + 1)) {
+        piece.y++;
+        dropDistance++;
+    }
+    score += dropDistance * 2;
+    merge();
+    resetPiece();
+    sweepBoard();
+    updateScore();
+}
+
+function collide(shape, posX = piece.x, posY = piece.y) {
     for (let y = 0; y < shape.length; y++) {
         for (let x = 0; x < shape[0].length; x++) {
             if (shape[y][x] !== 0) {
-                const newY = y + piece.y;
-                const newX = x + piece.x;
+                const newY = y + posY;
+                const newX = x + posX;
 
                 if (newX < 0 || newX >= COLS || newY >= ROWS) {
                     return true;
@@ -315,11 +376,10 @@ function collide(shape) {
 }
 
 function resetPiece() {
-    piece = nextPiece;
-    nextPiece = createPiece();
-    drawNextPiece();
+    piece = nextPieces.shift();
+    nextPieces.push(createPiece());
+    drawNextQueue();
     if (collide(piece.shape)) {
-        // Game Over
         board.forEach(row => row.fill(0));
         score = 0;
         updateScore();
@@ -327,8 +387,18 @@ function resetPiece() {
     }
 }
 
+function updateLevel() {
+    level = Math.floor(linesCleared / 10) + 1;
+    dropInterval = Math.max(100, 1000 - (level * 50));
+    const levelElement = document.getElementById('level');
+    if (levelElement) {
+        levelElement.innerText = level;
+    }
+}
+
 function sweepBoard() {
     let rowCount = 1;
+    let linesThisTurn = 0;
     outer: for (let y = board.length - 1; y > 0; --y) {
         for (let x = 0; x < board[y].length; ++x) {
             if (board[y][x] === 0) {
@@ -342,6 +412,12 @@ function sweepBoard() {
 
         score += rowCount * 10;
         rowCount *= 2;
+        linesThisTurn++;
+    }
+
+    if (linesThisTurn > 0) {
+        linesCleared += linesThisTurn;
+        updateLevel();
     }
 }
 
@@ -364,12 +440,14 @@ function togglePause() {
 }
 
 let dropCounter = 0;
-let dropInterval = 1000; // 1 seconde
+let dropInterval = 1000;
 let lastTime = 0;
 let score = 0;
-let board = createBoard();
-let piece = createPiece();
-let nextPiece = createPiece();
+let level = 1;
+let linesCleared = 0;
+let board;
+let piece;
+let nextPieces = [];
 
 function update(time = 0) {
     if (isPaused) return;
@@ -391,7 +469,7 @@ function update(time = 0) {
     }
 
     draw();
-    drawNextPiece();
+    drawNextQueue();
     animationFrameId = requestAnimationFrame(update);
 }
 
@@ -401,7 +479,6 @@ function updateScore() {
 
 // Mise à jour des event listeners
 document.addEventListener('keydown', event => {
-    // Support iOS/iPadOS external keyboard non-standard key values
     const key = event.key;
 
     if (!isPaused) {
@@ -419,6 +496,8 @@ document.addEventListener('keydown', event => {
             pieceDrop();
         } else if (key === 'ArrowUp' || key === 'UIKeyInputUpArrow') {
             rotateRight();
+        } else if (key === ' ') {
+            hardDrop();
         }
     }
     if (key === 'p' || key === 'P') {
@@ -539,9 +618,3 @@ function restartGame() {
     document.getElementById('game-container').style.display = 'none';
     document.getElementById('grid-menu').style.display = 'block';
 }
-
-// Démarrer le jeu
-updateScore();
-draw();
-drawNextPiece();
-requestAnimationFrame(update);
