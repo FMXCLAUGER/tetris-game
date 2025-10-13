@@ -55,10 +55,14 @@ function initGame(gridType) {
     linesCleared = 0;
     combo = 0;
     backToBack = 0;
+    lockDelay = 0;
+    lockDelayMoves = 0;
     dropInterval = 1000;
     pieceBag = [];
     holdPiece = null;
     canHold = true;
+    pieceCount = 0;
+    gameStartTime = Date.now();
     updateScore();
     updateLevel();
     updateCombo();
@@ -390,6 +394,7 @@ function tryRotate(newShape) {
         piece.y = originalY + kick.y;
 
         if (!collide(piece.shape)) {
+            resetLockDelay();
             draw();
             return;
         }
@@ -401,16 +406,14 @@ function tryRotate(newShape) {
     piece.y = originalY;
 }
 
-function pieceDrop() {
+function softDrop() {
     piece.y++;
     if (collide(piece.shape)) {
         piece.y--;
-        merge();
-        resetPiece();
-        sweepBoard();
+    } else {
+        score += 1;
         updateScore();
     }
-    dropCounter = 0;
 }
 
 function hardDrop() {
@@ -566,11 +569,17 @@ let level = 1;
 let linesCleared = 0;
 let combo = 0;
 let backToBack = 0;
+let lockDelay = 0;
+let lockDelayMax = 500;
+let lockDelayMoves = 0;
+let lockDelayMaxMoves = 15;
 let board;
 let piece;
 let nextPieces = [];
 let holdPiece = null;
 let canHold = true;
+let pieceCount = 0;
+let gameStartTime = 0;
 
 function update(time = 0) {
     if (isPaused) return;
@@ -579,16 +588,31 @@ function update(time = 0) {
     lastTime = time;
 
     dropCounter += deltaTime;
-    if (dropCounter > dropInterval) {
-        piece.y++;
-        if (collide(piece.shape)) {
-            piece.y--;
+
+    // Check if piece is on ground
+    const onGround = collide(piece.shape, piece.x, piece.y + 1);
+
+    if (onGround) {
+        lockDelay += deltaTime;
+
+        // Lock piece if delay exceeded or max moves reached
+        if (lockDelay >= lockDelayMax || lockDelayMoves >= lockDelayMaxMoves) {
             merge();
             resetPiece();
             sweepBoard();
             updateScore();
+            lockDelay = 0;
+            lockDelayMoves = 0;
+            dropCounter = 0;
         }
-        dropCounter = 0;
+    } else {
+        lockDelay = 0;
+        lockDelayMoves = 0;
+
+        if (dropCounter > dropInterval) {
+            piece.y++;
+            dropCounter = 0;
+        }
     }
 
     draw();
@@ -625,6 +649,13 @@ function updateBackToBack() {
     }
 }
 
+function resetLockDelay() {
+    if (collide(piece.shape, piece.x, piece.y + 1)) {
+        lockDelay = 0;
+        lockDelayMoves++;
+    }
+}
+
 // Mise à jour des event listeners
 document.addEventListener('keydown', event => {
     const key = event.key;
@@ -634,14 +665,24 @@ document.addEventListener('keydown', event => {
             piece.x--;
             if (collide(piece.shape)) {
                 piece.x++;
+            } else {
+                resetLockDelay();
             }
         } else if (key === 'ArrowRight' || key === 'UIKeyInputRightArrow') {
             piece.x++;
             if (collide(piece.shape)) {
                 piece.x--;
+            } else {
+                resetLockDelay();
             }
         } else if (key === 'ArrowDown' || key === 'UIKeyInputDownArrow') {
-            pieceDrop();
+            piece.y++;
+            if (collide(piece.shape)) {
+                piece.y--;
+            } else {
+                score += 1; // Soft drop scoring
+                updateScore();
+            }
         } else if (key === 'ArrowUp' || key === 'UIKeyInputUpArrow') {
             rotateRight();
         } else if (key === ' ') {
@@ -677,7 +718,7 @@ document.getElementById('right').addEventListener('click', () => {
 });
 
 document.getElementById('down').addEventListener('click', () => {
-    pieceDrop();
+    softDrop();
     draw();
 });
 
@@ -747,7 +788,7 @@ canvas.addEventListener('touchend', (e) => {
             }
         } else {
             if (deltaY > 0) {
-                pieceDrop();
+                softDrop();
             } else {
                 rotateRight();
             }
