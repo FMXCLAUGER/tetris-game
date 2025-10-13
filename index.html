@@ -152,6 +152,22 @@
             <p>Hold (C ou Shift)</p>
             <canvas id="next" width="120" height="240"></canvas>
             <p>Prochaines pièces</p>
+            <!-- Phase 10 - Replay controls -->
+            <div id="replay-controls" style="display: none; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #9C27B0 0%, #673AB7 100%); border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                <h3 style="margin: 0 0 10px 0; text-align: center; color: white; font-size: 16px;">🎬 Mode Replay</h3>
+                <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 10px;">
+                    <button id="replay-pause" style="padding: 10px 15px; background: #FF9800; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;"><i id="replay-pause-icon" class="fas fa-pause"></i></button>
+                    <button id="replay-stop" style="padding: 10px 15px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;"><i class="fas fa-stop"></i></button>
+                </div>
+                <div style="text-align: center; color: white; font-size: 12px; margin-bottom: 5px;">Vitesse:</div>
+                <div style="display: flex; gap: 5px; justify-content: center;">
+                    <button class="speed-btn" data-speed="0.5" style="padding: 5px 10px; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">0.5x</button>
+                    <button class="speed-btn" data-speed="1" style="padding: 5px 10px; background: #9C27B0; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">1x</button>
+                    <button class="speed-btn" data-speed="2" style="padding: 5px 10px; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">2x</button>
+                    <button class="speed-btn" data-speed="4" style="padding: 5px 10px; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">4x</button>
+                </div>
+            </div>
+
             <div id="game-controls">
                 <button class="control-btn" id="pause"><i class="fas fa-pause"></i></button>
                 <button class="control-btn" id="mute"><i class="fas fa-volume-up"></i></button>

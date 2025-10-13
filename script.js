@@ -474,7 +474,11 @@ function drawMatrix(matrix, offset, color) {
 function initNextQueue() {
     nextPieces = [];
     for (let i = 0; i < 2; i++) {
-        nextPieces.push(createPiece());
+        if (isReplaying) {
+            nextPieces.push(createPieceFromReplay());
+        } else {
+            nextPieces.push(createPiece());
+        }
     }
 }
 
@@ -706,13 +710,24 @@ function collide(shape, posX = piece.x, posY = piece.y) {
 }
 
 function resetPiece() {
-    piece = nextPieces.shift();
-    nextPieces.push(createPiece());
+    if (isReplaying) {
+        piece = createPieceFromReplay();
+        nextPieces.shift();
+        nextPieces.push(createPieceFromReplay());
+    } else {
+        piece = nextPieces.shift();
+        nextPieces.push(createPiece());
+    }
     canHold = true;
     pieceCount++;
     drawNextQueue();
     if (collide(piece.shape)) {
-        gameOver();
+        if (isReplaying) {
+            // Don't show game over during replay
+            stopReplayPlayback();
+        } else {
+            gameOver();
+        }
     }
 }
 
@@ -1186,7 +1201,9 @@ let replayData = null;
 let currentReplay = null;
 let replayStartTime = 0;
 let replayInputIndex = 0;
+let replayPieceIndex = 0;
 let replaySpeed = 1.0; // 1x speed by default
+let replayPaused = false;
 
 // Phase 10 - Replay structure
 class Replay {
@@ -1286,6 +1303,223 @@ function recordInput(action, data = null) {
     if (isRecording && currentReplay) {
         currentReplay.recordInput(action, data);
     }
+}
+
+// Phase 10 - Replay playback functions
+function startReplayPlayback(replayJson) {
+    // Load the replay
+    replayData = Replay.fromJSON(replayJson);
+    isReplaying = true;
+    isRecording = false;
+    replayInputIndex = 0;
+    replayPieceIndex = 0;
+    replayPaused = false;
+
+    // Initialize the game with replay settings
+    gameMode = replayData.gameMode;
+    const gridType = replayData.gridType;
+
+    const config = GRID_CONFIGS[gridType];
+    ROWS = config.rows;
+    COLS = config.cols;
+    BLOCK_SIZE = calculateBlockSize(ROWS, COLS);
+
+    canvas.width = COLS * BLOCK_SIZE;
+    canvas.height = ROWS * BLOCK_SIZE;
+    nextCanvas.width = 4 * NEXT_BLOCK_SIZE;
+    nextCanvas.height = 8 * NEXT_BLOCK_SIZE;
+    holdCanvas.width = 4 * NEXT_BLOCK_SIZE;
+    holdCanvas.height = 4 * NEXT_BLOCK_SIZE;
+
+    context.scale(BLOCK_SIZE, BLOCK_SIZE);
+    nextContext.scale(NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
+    holdContext.scale(NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
+
+    board = createBoard();
+    score = 0;
+    level = gameSettings.startLevel;
+    linesCleared = 0;
+    combo = 0;
+    backToBack = 0;
+    lockDelay = 0;
+    lockDelayMoves = 0;
+    dropInterval = Math.max(100, 1000 - (level * 50));
+    pieceBag = [];
+    holdPiece = null;
+    canHold = true;
+    pieceCount = 0;
+
+    lastMoveWasRotation = false;
+    tSpinType = null;
+    perfectClearBonus = 0;
+    totalMoves = 0;
+    totalRotations = 0;
+    totalHardDrops = 0;
+    totalSoftDrops = 0;
+
+    updateScore();
+    updateLevel();
+    updateCombo();
+    updateBackToBack();
+
+    piece = createPieceFromReplay();
+    initNextQueue();
+    drawHoldPiece();
+
+    const timerElement = document.getElementById('game-timer');
+    const linesGoalElement = document.getElementById('lines-goal');
+
+    if (gameMode === 'sprint') {
+        timerElement.style.display = 'block';
+        linesGoalElement.style.display = 'block';
+        updateLinesGoal();
+    } else if (gameMode === 'ultra') {
+        timerElement.style.display = 'block';
+        linesGoalElement.style.display = 'none';
+        gameTimer = ultraTimeLimit;
+    } else {
+        timerElement.style.display = 'none';
+        linesGoalElement.style.display = 'none';
+    }
+
+    document.getElementById('game-container').style.display = 'flex';
+    document.getElementById('replays-modal').style.display = 'none';
+
+    // Show replay controls
+    document.getElementById('replay-controls').style.display = 'block';
+    updateReplaySpeedDisplay();
+
+    isPaused = false;
+    lastTime = 0;
+    dropCounter = 0;
+    replayStartTime = Date.now();
+    gameStartTime = Date.now();
+
+    requestAnimationFrame(update);
+}
+
+function stopReplayPlayback() {
+    isReplaying = false;
+    replayData = null;
+    replayInputIndex = 0;
+    replayPieceIndex = 0;
+    document.getElementById('replay-controls').style.display = 'none';
+    restartGame();
+}
+
+function toggleReplayPause() {
+    replayPaused = !replayPaused;
+    const icon = document.getElementById('replay-pause-icon');
+    if (replayPaused) {
+        icon.classList.remove('fa-pause');
+        icon.classList.add('fa-play');
+    } else {
+        icon.classList.remove('fa-play');
+        icon.classList.add('fa-pause');
+    }
+}
+
+function changeReplaySpeed(speed) {
+    replaySpeed = speed;
+    updateReplaySpeedDisplay();
+}
+
+function updateReplaySpeedDisplay() {
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.style.background = '#666';
+    });
+    const activeBtn = document.querySelector(`.speed-btn[data-speed="${replaySpeed}"]`);
+    if (activeBtn) {
+        activeBtn.style.background = '#9C27B0';
+    }
+}
+
+function processReplayInputs() {
+    if (!isReplaying || !replayData || replayPaused) return;
+
+    const currentTime = (Date.now() - replayStartTime) * replaySpeed;
+
+    while (replayInputIndex < replayData.inputs.length) {
+        const input = replayData.inputs[replayInputIndex];
+
+        if (input.time > currentTime) break;
+
+        // Execute the input
+        switch(input.action) {
+            case 'moveLeft':
+                piece.x--;
+                if (collide(piece.shape)) piece.x++;
+                else {
+                    resetLockDelay();
+                    lastMoveWasRotation = false;
+                    totalMoves++;
+                    audioManager.playMove();
+                }
+                break;
+            case 'moveRight':
+                piece.x++;
+                if (collide(piece.shape)) piece.x--;
+                else {
+                    resetLockDelay();
+                    lastMoveWasRotation = false;
+                    totalMoves++;
+                    audioManager.playMove();
+                }
+                break;
+            case 'softDrop':
+                piece.y++;
+                if (collide(piece.shape)) piece.y--;
+                else {
+                    score += 1;
+                    updateScore();
+                    lastMoveWasRotation = false;
+                }
+                break;
+            case 'rotateRight':
+                rotateRight();
+                break;
+            case 'hardDrop':
+                hardDrop();
+                break;
+            case 'hold':
+                holdCurrentPiece();
+                break;
+        }
+
+        replayInputIndex++;
+    }
+
+    // Check if replay is finished
+    if (replayInputIndex >= replayData.inputs.length) {
+        setTimeout(() => {
+            alert('Replay terminé!');
+            stopReplayPlayback();
+        }, 1000);
+    }
+}
+
+function createPieceFromReplay() {
+    if (!isReplaying || !replayData) {
+        return createPiece();
+    }
+
+    if (replayPieceIndex >= replayData.pieces.length) {
+        // Replay finished
+        return createPiece();
+    }
+
+    const typeId = replayData.pieces[replayPieceIndex];
+    replayPieceIndex++;
+
+    const piece = TETROMINOES[typeId];
+
+    return {
+        x: Math.floor(COLS / 2) - Math.floor(piece[0].length / 2),
+        y: 0,
+        shape: piece,
+        color: COLORS[typeId],
+        typeId: typeId
+    };
 }
 
 // Phase 8 - Load settings from localStorage
@@ -1492,7 +1726,7 @@ function displayReplays() {
 
         html += `<div style="border: 2px solid #9C27B0; padding: 15px; border-radius: 8px; background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);">`;
         html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
-        html += `<div>`;
+        html += `<div style="flex: 1;">`;
         html += `<h3 style="margin: 0 0 10px 0; color: #9C27B0;">🎬 Replay #${index + 1}</h3>`;
         html += `<p style="margin: 5px 0;"><strong>Score:</strong> ${replay.metadata.score.toLocaleString()}</p>`;
         html += `<p style="margin: 5px 0;"><strong>Lignes:</strong> ${replay.metadata.lines} | <strong>Niveau:</strong> ${replay.metadata.level}</p>`;
@@ -1500,6 +1734,9 @@ function displayReplays() {
         html += `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Date:</strong> ${dateStr}</p>`;
         html += `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Durée:</strong> ${formatTime(replay.metadata.duration)}</p>`;
         html += `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Inputs:</strong> ${replay.inputs.length} actions | <strong>Pièces:</strong> ${replay.pieces.length}</p>`;
+        html += `</div>`;
+        html += `<div>`;
+        html += `<button onclick="playReplay(${index})" style="padding: 10px 20px; background: #9C27B0; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold;"><i class="fas fa-play"></i> Voir</button>`;
         html += `</div>`;
         html += `</div>`;
         html += `</div>`;
@@ -1524,6 +1761,32 @@ document.getElementById('replays-modal').addEventListener('click', (e) => {
     if (e.target.id === 'replays-modal') {
         document.getElementById('replays-modal').style.display = 'none';
     }
+});
+
+// Phase 10 - Play a specific replay
+function playReplay(index) {
+    const replays = getAllReplays();
+    if (index >= 0 && index < replays.length) {
+        startReplayPlayback(replays[index]);
+    }
+}
+
+// Phase 10 - Replay control event listeners
+document.getElementById('replay-pause').addEventListener('click', () => {
+    toggleReplayPause();
+});
+
+document.getElementById('replay-stop').addEventListener('click', () => {
+    if (confirm('Arrêter le replay ?')) {
+        stopReplayPlayback();
+    }
+});
+
+document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const speed = parseFloat(btn.getAttribute('data-speed'));
+        changeReplaySpeed(speed);
+    });
 });
 
 // Phase 7 - Statistiques détaillées
@@ -1679,6 +1942,11 @@ function update(time = 0) {
     const deltaTime = time - lastTime;
     lastTime = time;
 
+    // Phase 10 - Process replay inputs
+    if (isReplaying) {
+        processReplayInputs();
+    }
+
     dropCounter += deltaTime;
 
     // Gestion des timers selon le mode
@@ -1817,6 +2085,9 @@ function resetLockDelay() {
 // Mise à jour des event listeners
 document.addEventListener('keydown', event => {
     const key = event.key;
+
+    // Phase 10 - Disable controls during replay
+    if (isReplaying) return;
 
     if (!isPaused) {
         if (key === 'ArrowLeft' || key === 'UIKeyInputLeftArrow') {
