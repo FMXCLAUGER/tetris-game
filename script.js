@@ -126,21 +126,31 @@ function applyTheme(themeName) {
     localStorage.setItem('tetrisTheme', themeName);
 }
 
-// Event listener pour le bouton de démarrage
-document.getElementById('start-game').addEventListener('click', () => {
-    const gridType = document.getElementById('grid-select').value;
-    gameMode = document.getElementById('game-mode').value;
-    const theme = document.getElementById('theme-select').value;
+// Event listener pour le bouton de démarrage - Wrapped in DOMContentLoaded to ensure menu is ready
+document.addEventListener('DOMContentLoaded', () => {
+    const startButton = document.getElementById('start-game');
+    if (startButton) {
+        startButton.addEventListener('click', () => {
+            const gridType = document.getElementById('grid-select').value;
+            gameMode = document.getElementById('game-mode').value;
+            const theme = document.getElementById('theme-select').value;
 
-    applyTheme(theme); // Phase 6 - Apply theme
-    audioManager.init(); // Phase 6 - Initialize audio
-    initGame(gridType);
+            applyTheme(theme); // Phase 6 - Apply theme
+            audioManager.init(); // Phase 6 - Initialize audio
+            initGame(gridType);
+        });
+    }
 });
 
 // Phase 6 - Load saved theme on page load
-const savedTheme = localStorage.getItem('tetrisTheme') || 'classic';
-document.getElementById('theme-select').value = savedTheme;
-applyTheme(savedTheme);
+document.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem('tetrisTheme') || 'classic';
+    const themeSelect = document.getElementById('theme-select');
+    if (themeSelect) {
+        themeSelect.value = savedTheme;
+    }
+    applyTheme(savedTheme);
+});
 
 // Afficher les high scores au chargement
 function displayHighScores() {
@@ -275,10 +285,12 @@ document.getElementById('stats-modal').addEventListener('click', (e) => {
     }
 });
 
-// Appeler au chargement de la page
-displayHighScores();
-loadStats(); // Phase 7 - Load stats
-loadSettings(); // Phase 8 - Load settings
+// Appeler au chargement de la page - Wrapped in DOMContentLoaded to ensure DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    displayHighScores();
+    loadStats(); // Phase 7 - Load stats
+    loadSettings(); // Phase 8 - Load settings
+});
 
 const TETROMINOES = [
     [[1, 1, 1, 1]], // I
