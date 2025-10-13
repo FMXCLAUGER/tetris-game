@@ -144,27 +144,32 @@ applyTheme(savedTheme);
 
 // Afficher les high scores au chargement
 function displayHighScores() {
-    const scores = getHighScores();
-    const scoresList = document.getElementById('scores-list');
-
-    if (scores.length === 0) {
-        scoresList.innerHTML = '<p style="color: #666;">Aucun score enregistré</p>';
+    // Use new menu system if available
+    if (window.menuInteractions && window.menuInteractions.loadBestScores) {
+        window.menuInteractions.loadBestScores();
         return;
     }
 
-    let html = '<table style="width: 100%; border-collapse: collapse;">';
-    html += '<tr style="border-bottom: 2px solid #333;"><th>Rang</th><th>Score</th><th>Lignes</th><th>Niveau</th></tr>';
+    // Fallback to old system
+    const scores = getHighScores();
+    const scoresList = document.getElementById('scores-list');
 
+    if (!scoresList) return;
+
+    if (scores.length === 0) {
+        scoresList.innerHTML = '<li style="text-align: center; padding: 20px; color: #6c757d;">Aucun score enregistré</li>';
+        return;
+    }
+
+    let html = '';
     scores.forEach((s, index) => {
-        html += `<tr style="border-bottom: 1px solid #ccc;">
-            <td style="padding: 5px; text-align: center;">${index + 1}</td>
-            <td style="padding: 5px; text-align: center; font-weight: bold;">${s.score}</td>
-            <td style="padding: 5px; text-align: center;">${s.lines}</td>
-            <td style="padding: 5px; text-align: center;">${s.level}</td>
-        </tr>`;
+        html += `<li class="leaderboard__item">
+            <span style="font-weight: 600; color: #6c757d; min-width: 40px;">#${index + 1}</span>
+            <span style="flex: 1; font-weight: 600;">${s.score.toLocaleString()} pts</span>
+            <span style="font-size: 14px; color: #6c757d;">${s.lines} lignes • Niv. ${s.level}</span>
+        </li>`;
     });
 
-    html += '</table>';
     scoresList.innerHTML = html;
 }
 

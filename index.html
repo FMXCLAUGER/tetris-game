@@ -5,50 +5,206 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tetris</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="menu-redesign.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
-    <h1>Tetris</h1>
-    
-    <!-- Menu de sélection de grille -->
     <div id="grid-menu">
-        <h2>Mode de Jeu</h2>
-        <select id="game-mode">
-            <option value="marathon">Marathon (Classique)</option>
-            <option value="sprint">Sprint (40 lignes)</option>
-            <option value="ultra">Ultra (2 minutes)</option>
-        </select>
-
-        <h2 style="margin-top: 20px;">Thème</h2>
-        <select id="theme-select">
-            <option value="classic">Classic (Clair)</option>
-            <option value="dark">Dark Mode</option>
-            <option value="neon">Neon</option>
-        </select>
-
-        <h2 style="margin-top: 20px;">Grille</h2>
-        <select id="grid-select">
-            <option value="standard">Standard (10x20)</option>
-            <option value="square">Carré (15x15)</option>
-            <option value="wide">Large (15x25)</option>
-            <option value="tall">Haut (8x25)</option>
-            <option value="mini">Mini (8x12)</option>
-        </select>
-        <button id="start-game">Commencer</button>
-
-        <div id="high-scores" style="margin-top: 30px;">
-            <h3>Meilleurs Scores</h3>
-            <div id="scores-list"></div>
+        <!-- Hero Section -->
+        <div class="menu-hero">
+            <h1 class="menu-hero__logo">🎮 TETRIS</h1>
+            <p class="menu-hero__tagline">Le Tetris moderne avec fonctionnalités pro</p>
+            <div class="menu-hero__meta">
+                <span>v2.0</span>
+                <span>•</span>
+                <span id="total-games-played">0 parties jouées</span>
+            </div>
         </div>
 
-        <!-- Phase 7 - Stats button -->
-        <button id="view-stats" style="margin-top: 20px; padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">📊 Voir Statistiques</button>
+        <!-- Mode Selection Cards -->
+        <div class="menu-section mode-section">
+            <h2 class="menu-section__title">Choisis ton Mode de Jeu</h2>
+            <div class="mode-cards">
+                <div class="mode-card selected" data-mode="marathon">
+                    <span class="mode-card__icon">∞</span>
+                    <h3 class="mode-card__title">Marathon</h3>
+                    <p class="mode-card__desc">Mode classique sans limite de temps</p>
+                    <div class="mode-card__stat">
+                        <span class="stat-icon">🏆</span>
+                        <span class="stat-value" data-stat="marathon">0 pts</span>
+                    </div>
+                </div>
 
-        <!-- Phase 8 - Settings button -->
-        <button id="view-settings" style="margin-top: 10px; padding: 10px 20px; background: #FF9800; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">⚙️ Paramètres</button>
+                <div class="mode-card" data-mode="sprint">
+                    <span class="mode-card__icon">⚡</span>
+                    <h3 class="mode-card__title">Sprint</h3>
+                    <p class="mode-card__desc">Complète 40 lignes le plus vite possible</p>
+                    <div class="mode-card__stat">
+                        <span class="stat-icon">⏱️</span>
+                        <span class="stat-value" data-stat="sprint">--:--</span>
+                    </div>
+                </div>
 
-        <!-- Phase 10 - Replays button -->
-        <button id="view-replays" style="margin-top: 10px; padding: 10px 20px; background: #9C27B0; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">🎬 Replays</button>
+                <div class="mode-card" data-mode="ultra">
+                    <span class="mode-card__icon">🚀</span>
+                    <h3 class="mode-card__title">Ultra</h3>
+                    <p class="mode-card__desc">Score maximum en 2 minutes chrono</p>
+                    <div class="mode-card__stat">
+                        <span class="stat-icon">📊</span>
+                        <span class="stat-value" data-stat="ultra">0 pts</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Section with Tabs -->
+        <div class="menu-section config-section">
+            <h2 class="menu-section__title">Configuration</h2>
+
+            <div class="config-tabs">
+                <button class="config-tab active" data-tab="grid">Grille</button>
+                <button class="config-tab" data-tab="theme">Thème</button>
+                <button class="config-tab" data-tab="difficulty">Difficulté</button>
+            </div>
+
+            <div class="config-content">
+                <!-- Grid Panel -->
+                <div class="config-panel active" data-panel="grid">
+                    <div class="grid-options">
+                        <div class="grid-option selected" data-grid="standard">
+                            <div class="grid-preview"></div>
+                            <span class="grid-label">Standard</span>
+                            <span class="grid-size">10×20</span>
+                        </div>
+                        <div class="grid-option" data-grid="square">
+                            <div class="grid-preview"></div>
+                            <span class="grid-label">Carré</span>
+                            <span class="grid-size">15×15</span>
+                        </div>
+                        <div class="grid-option" data-grid="wide">
+                            <div class="grid-preview"></div>
+                            <span class="grid-label">Large</span>
+                            <span class="grid-size">25×15</span>
+                        </div>
+                        <div class="grid-option" data-grid="tall">
+                            <div class="grid-preview"></div>
+                            <span class="grid-label">Haut</span>
+                            <span class="grid-size">8×25</span>
+                        </div>
+                        <div class="grid-option" data-grid="mini">
+                            <div class="grid-preview"></div>
+                            <span class="grid-label">Mini</span>
+                            <span class="grid-size">8×12</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Theme Panel -->
+                <div class="config-panel" data-panel="theme">
+                    <div class="theme-options">
+                        <div class="theme-option selected" data-theme="classic">
+                            <div class="theme-swatch">
+                                <span style="background: #FF0000;"></span>
+                                <span style="background: #00FF00;"></span>
+                                <span style="background: #0000FF;"></span>
+                                <span style="background: #FFFF00;"></span>
+                            </div>
+                            <span class="theme-name">Classic</span>
+                        </div>
+                        <div class="theme-option" data-theme="dark">
+                            <div class="theme-swatch">
+                                <span style="background: #ff6b6b;"></span>
+                                <span style="background: #51cf66;"></span>
+                                <span style="background: #339af0;"></span>
+                                <span style="background: #ffd43b;"></span>
+                            </div>
+                            <span class="theme-name">Dark Mode</span>
+                        </div>
+                        <div class="theme-option" data-theme="neon">
+                            <div class="theme-swatch">
+                                <span style="background: #ff0080;"></span>
+                                <span style="background: #00ff00;"></span>
+                                <span style="background: #00ffff;"></span>
+                                <span style="background: #ffff00;"></span>
+                            </div>
+                            <span class="theme-name">Neon</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Difficulty Panel -->
+                <div class="config-panel" data-panel="difficulty">
+                    <div class="difficulty-option">
+                        <label for="start-level-new">Niveau de départ :</label>
+                        <input type="number" id="start-level-new" min="1" max="20" value="1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hero CTA Button -->
+        <div class="hero-cta-section">
+            <button class="hero-cta" id="start-game">
+                <span class="hero-cta__icon">▶</span>
+                <span class="hero-cta__text">JOUER MAINTENANT</span>
+                <span class="hero-cta__subtitle" id="config-summary">Marathon • Standard • Classic</span>
+            </button>
+        </div>
+
+        <!-- Quick Access Cards -->
+        <div class="menu-section quick-access">
+            <div class="quick-cards">
+                <a href="#" class="quick-card" id="view-stats">
+                    <span class="quick-card__icon">📊</span>
+                    <h3 class="quick-card__title">Statistiques</h3>
+                    <p class="quick-card__desc">Consulte ta progression</p>
+                </a>
+
+                <a href="#" class="quick-card" id="view-settings">
+                    <span class="quick-card__icon">⚙️</span>
+                    <h3 class="quick-card__title">Paramètres</h3>
+                    <p class="quick-card__desc">Personnalise ton jeu</p>
+                </a>
+
+                <a href="#" class="quick-card" id="view-replays">
+                    <span class="quick-card__icon">🎬</span>
+                    <h3 class="quick-card__title">Replays</h3>
+                    <p class="quick-card__desc">Revois tes parties</p>
+                </a>
+            </div>
+        </div>
+
+        <!-- Leaderboard Section -->
+        <div class="menu-section leaderboard-section">
+            <h2 class="menu-section__title">🏆 Top Players</h2>
+            <div class="leaderboard">
+                <div class="podium" id="top-3-podium">
+                    <!-- Top 3 will be populated by JS -->
+                </div>
+                <ul class="leaderboard__list" id="scores-list">
+                    <!-- Remaining scores will be populated by JS -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Hidden selects for compatibility with existing JS -->
+        <select id="game-mode" style="display: none;">
+            <option value="marathon" selected>Marathon</option>
+            <option value="sprint">Sprint</option>
+            <option value="ultra">Ultra</option>
+        </select>
+        <select id="grid-select" style="display: none;">
+            <option value="standard" selected>Standard</option>
+            <option value="square">Carré</option>
+            <option value="wide">Large</option>
+            <option value="tall">Haut</option>
+            <option value="mini">Mini</option>
+        </select>
+        <select id="theme-select" style="display: none;">
+            <option value="classic" selected>Classic</option>
+            <option value="dark">Dark</option>
+            <option value="neon">Neon</option>
+        </select>
     </div>
 
     <!-- Phase 7 - Stats Modal -->
@@ -219,6 +375,7 @@
         }
     </style>
 
+    <script src="menu-interactions.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
