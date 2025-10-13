@@ -86,6 +86,35 @@ document.getElementById('start-game').addEventListener('click', () => {
     initGame(gridType);
 });
 
+// Afficher les high scores au chargement
+function displayHighScores() {
+    const scores = getHighScores();
+    const scoresList = document.getElementById('scores-list');
+
+    if (scores.length === 0) {
+        scoresList.innerHTML = '<p style="color: #666;">Aucun score enregistré</p>';
+        return;
+    }
+
+    let html = '<table style="width: 100%; border-collapse: collapse;">';
+    html += '<tr style="border-bottom: 2px solid #333;"><th>Rang</th><th>Score</th><th>Lignes</th><th>Niveau</th></tr>';
+
+    scores.forEach((s, index) => {
+        html += `<tr style="border-bottom: 1px solid #ccc;">
+            <td style="padding: 5px; text-align: center;">${index + 1}</td>
+            <td style="padding: 5px; text-align: center; font-weight: bold;">${s.score}</td>
+            <td style="padding: 5px; text-align: center;">${s.lines}</td>
+            <td style="padding: 5px; text-align: center;">${s.level}</td>
+        </tr>`;
+    });
+
+    html += '</table>';
+    scoresList.innerHTML = html;
+}
+
+// Appeler au chargement de la page
+displayHighScores();
+
 const TETROMINOES = [
     [[1, 1, 1, 1]], // I
     [[1, 1], [1, 1]],   // O
@@ -188,8 +217,15 @@ function drawMatrix(matrix, offset, color) {
     matrix.forEach((row, y) => {
         row.forEach((value, x) => {
             if (value !== 0) {
+                // Animation flash pour les lignes à clear
+                const isClearing = linesToClear.includes(y + offset.y);
+
                 // Couleur principale du bloc
-                const blockColor = color || COLORS[value - 1];
+                let blockColor = color || COLORS[value - 1];
+                if (isClearing) {
+                    blockColor = '#FFFFFF'; // Flash blanc
+                }
+
                 context.fillStyle = blockColor;
                 context.fillRect(
                     x + offset.x + padding,
@@ -199,13 +235,15 @@ function drawMatrix(matrix, offset, color) {
                 );
 
                 // Effet de lumière (haut-gauche plus clair)
-                context.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                context.fillRect(
-                    x + offset.x + padding,
-                    y + offset.y + padding,
-                    blockSize / 2,
-                    blockSize / 2
-                );
+                if (!isClearing) {
+                    context.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    context.fillRect(
+                        x + offset.x + padding,
+                        y + offset.y + padding,
+                        blockSize / 2,
+                        blockSize / 2
+                    );
+                }
 
                 // Bordure noire
                 context.strokeStyle = '#000000';
@@ -453,13 +491,53 @@ function resetPiece() {
     piece = nextPieces.shift();
     nextPieces.push(createPiece());
     canHold = true;
+    pieceCount++;
     drawNextQueue();
     if (collide(piece.shape)) {
-        board.forEach(row => row.fill(0));
-        score = 0;
-        updateScore();
-        alert('Game Over');
+        gameOver();
     }
+}
+
+function gameOver() {
+    const playTime = Math.floor((Date.now() - gameStartTime) / 1000);
+    saveHighScore(score, linesCleared, level, playTime);
+
+    board.forEach(row => row.fill(0));
+    alert(`Game Over!\n\nScore: ${score}\nLignes: ${linesCleared}\nNiveau: ${level}\nTemps: ${formatTime(playTime)}`);
+
+    score = 0;
+    linesCleared = 0;
+    level = 1;
+    updateScore();
+    updateLevel();
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function saveHighScore(score, lines, level, time) {
+    let highScores = JSON.parse(localStorage.getItem('tetrisHighScores')) || [];
+
+    highScores.push({
+        score: score,
+        lines: lines,
+        level: level,
+        time: time,
+        date: new Date().toISOString()
+    });
+
+    // Trier par score décroissant et garder top 10
+    highScores.sort((a, b) => b.score - a.score);
+    highScores = highScores.slice(0, 10);
+
+    localStorage.setItem('tetrisHighScores', JSON.stringify(highScores));
+}
+
+function getHighScores() {
+    return JSON.parse(localStorage.getItem('tetrisHighScores')) || [];
 }
 
 function holdCurrentPiece() {
@@ -493,47 +571,27 @@ function updateLevel() {
 }
 
 function sweepBoard() {
-    let rowCount = 1;
-    let linesThisTurn = 0;
-    outer: for (let y = board.length - 1; y > 0; --y) {
+    // Détecter les lignes complètes
+    linesToClear = [];
+    for (let y = board.length - 1; y > 0; --y) {
+        let complete = true;
         for (let x = 0; x < board[y].length; ++x) {
             if (board[y][x] === 0) {
-                continue outer;
+                complete = false;
+                break;
             }
         }
-
-        const row = board.splice(y, 1)[0].fill(0);
-        board.unshift(row);
-        ++y;
-
-        score += rowCount * 10;
-        rowCount *= 2;
-        linesThisTurn++;
+        if (complete) {
+            linesToClear.push(y);
+        }
     }
 
-    if (linesThisTurn > 0) {
-        linesCleared += linesThisTurn;
-
-        // Tetris (4 lines) detection
-        if (linesThisTurn === 4) {
-            // Back-to-Back bonus (50% extra)
-            if (backToBack > 0) {
-                score += Math.floor((rowCount - 1) * 10 * 0.5);
-            }
-            backToBack++;
-        } else {
-            backToBack = 0;
-        }
-
-        // Combo bonus
-        if (combo > 0) {
-            score += combo * 50 * level;
-        }
-        combo++;
-
-        updateLevel();
-        updateCombo();
-        updateBackToBack();
+    if (linesToClear.length > 0) {
+        // Démarrer l'animation
+        clearingLines = true;
+        setTimeout(() => {
+            actuallyRemoveLines();
+        }, 200); // Animation de 200ms
     } else {
         // Reset combo si aucune ligne clearée
         if (combo > 0) {
@@ -541,6 +599,47 @@ function sweepBoard() {
             updateCombo();
         }
     }
+}
+
+function actuallyRemoveLines() {
+    const linesThisTurn = linesToClear.length;
+    let rowCount = 1;
+
+    // Supprimer les lignes
+    linesToClear.sort((a, b) => b - a); // Trier en ordre décroissant
+    linesToClear.forEach(y => {
+        const row = board.splice(y, 1)[0].fill(0);
+        board.unshift(row);
+        score += rowCount * 10;
+        rowCount *= 2;
+    });
+
+    linesCleared += linesThisTurn;
+
+    // Tetris (4 lines) detection
+    if (linesThisTurn === 4) {
+        // Back-to-Back bonus (50% extra)
+        if (backToBack > 0) {
+            score += Math.floor((rowCount - 1) * 10 * 0.5);
+        }
+        backToBack++;
+    } else if (linesThisTurn < 4 && linesThisTurn > 0) {
+        backToBack = 0;
+    }
+
+    // Combo bonus
+    if (combo > 0) {
+        score += combo * 50 * level;
+    }
+    combo++;
+
+    updateLevel();
+    updateCombo();
+    updateBackToBack();
+    updateScore();
+
+    linesToClear = [];
+    clearingLines = false;
 }
 
 // Variables globales pour la pause
@@ -580,6 +679,8 @@ let holdPiece = null;
 let canHold = true;
 let pieceCount = 0;
 let gameStartTime = 0;
+let linesToClear = [];
+let clearingLines = false;
 
 function update(time = 0) {
     if (isPaused) return;
