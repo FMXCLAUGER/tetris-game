@@ -2,6 +2,8 @@ const canvas = document.getElementById('tetris');
 const context = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next');
 const nextContext = nextCanvas.getContext('2d');
+const holdCanvas = document.getElementById('hold');
+const holdContext = holdCanvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 
 // Configuration des différentes grilles de jeu
@@ -40,19 +42,30 @@ function initGame(gridType) {
     nextCanvas.width = 4 * NEXT_BLOCK_SIZE;
     nextCanvas.height = 8 * NEXT_BLOCK_SIZE;
 
+    holdCanvas.width = 4 * NEXT_BLOCK_SIZE;
+    holdCanvas.height = 4 * NEXT_BLOCK_SIZE;
+
     context.scale(BLOCK_SIZE, BLOCK_SIZE);
     nextContext.scale(NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
+    holdContext.scale(NEXT_BLOCK_SIZE, NEXT_BLOCK_SIZE);
 
     board = createBoard();
     score = 0;
     level = 1;
     linesCleared = 0;
+    combo = 0;
+    backToBack = 0;
     dropInterval = 1000;
     pieceBag = [];
+    holdPiece = null;
+    canHold = true;
     updateScore();
     updateLevel();
+    updateCombo();
+    updateBackToBack();
     piece = createPiece();
     initNextQueue();
+    drawHoldPiece();
 
     document.getElementById('game-container').style.display = 'flex';
     document.getElementById('grid-menu').style.display = 'none';
@@ -270,6 +283,47 @@ function drawNextQueue() {
     });
 }
 
+function drawHoldPiece() {
+    holdContext.fillStyle = '#FFFFFF';
+    holdContext.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
+
+    if (!holdPiece) return;
+
+    const shape = holdPiece.shape;
+    const color = holdPiece.color;
+
+    const scale = Math.min(
+        (holdCanvas.width / NEXT_BLOCK_SIZE) / shape[0].length,
+        (holdCanvas.height / NEXT_BLOCK_SIZE) / shape.length
+    ) * 0.6;
+
+    const xOffset = ((holdCanvas.width / NEXT_BLOCK_SIZE) - (shape[0].length * scale)) / 2;
+    const yOffset = ((holdCanvas.height / NEXT_BLOCK_SIZE) - (shape.length * scale)) / 2;
+
+    shape.forEach((row, y) => {
+        row.forEach((value, x) => {
+            if (value !== 0) {
+                holdContext.fillStyle = canHold ? color : '#888888';
+                holdContext.fillRect(
+                    (x * scale) + xOffset,
+                    (y * scale) + yOffset,
+                    scale * 0.9,
+                    scale * 0.9
+                );
+
+                holdContext.strokeStyle = '#000000';
+                holdContext.lineWidth = scale * 0.1;
+                holdContext.strokeRect(
+                    (x * scale) + xOffset,
+                    (y * scale) + yOffset,
+                    scale * 0.9,
+                    scale * 0.9
+                );
+            }
+        });
+    });
+}
+
 function merge() {
     piece.shape.forEach((row, y) => {
         row.forEach((value, x) => {
@@ -314,20 +368,37 @@ function rotateRight() {
 
 function tryRotate(newShape) {
     const originalShape = piece.shape;
-    const pos = piece.x;
-    let offset = 1;
+    const originalX = piece.x;
+    const originalY = piece.y;
+
+    // Wall kick tests (simplified SRS-like)
+    const kickTests = [
+        { x: 0, y: 0 },   // No kick
+        { x: -1, y: 0 },  // Left
+        { x: 1, y: 0 },   // Right
+        { x: -2, y: 0 },  // Left 2
+        { x: 2, y: 0 },   // Right 2
+        { x: 0, y: -1 },  // Up
+        { x: -1, y: -1 }, // Left + Up
+        { x: 1, y: -1 },  // Right + Up
+    ];
+
     piece.shape = newShape;
 
-    while (collide(piece.shape)) {
-        piece.x += offset;
-        offset = -(offset + (offset > 0 ? 1 : -1));
-        if (offset > piece.shape[0].length) {
-            piece.x = pos;
-            piece.shape = originalShape;
+    for (const kick of kickTests) {
+        piece.x = originalX + kick.x;
+        piece.y = originalY + kick.y;
+
+        if (!collide(piece.shape)) {
+            draw();
             return;
         }
     }
-    draw();
+
+    // All kicks failed, revert
+    piece.shape = originalShape;
+    piece.x = originalX;
+    piece.y = originalY;
 }
 
 function pieceDrop() {
@@ -378,6 +449,7 @@ function collide(shape, posX = piece.x, posY = piece.y) {
 function resetPiece() {
     piece = nextPieces.shift();
     nextPieces.push(createPiece());
+    canHold = true;
     drawNextQueue();
     if (collide(piece.shape)) {
         board.forEach(row => row.fill(0));
@@ -385,6 +457,27 @@ function resetPiece() {
         updateScore();
         alert('Game Over');
     }
+}
+
+function holdCurrentPiece() {
+    if (!canHold) return;
+
+    if (holdPiece === null) {
+        holdPiece = piece;
+        piece = nextPieces.shift();
+        nextPieces.push(createPiece());
+        drawNextQueue();
+    } else {
+        const temp = holdPiece;
+        holdPiece = piece;
+        piece = temp;
+        piece.x = Math.floor(COLS / 2) - Math.floor(piece.shape[0].length / 2);
+        piece.y = 0;
+    }
+
+    canHold = false;
+    drawHoldPiece();
+    draw();
 }
 
 function updateLevel() {
@@ -417,7 +510,33 @@ function sweepBoard() {
 
     if (linesThisTurn > 0) {
         linesCleared += linesThisTurn;
+
+        // Tetris (4 lines) detection
+        if (linesThisTurn === 4) {
+            // Back-to-Back bonus (50% extra)
+            if (backToBack > 0) {
+                score += Math.floor((rowCount - 1) * 10 * 0.5);
+            }
+            backToBack++;
+        } else {
+            backToBack = 0;
+        }
+
+        // Combo bonus
+        if (combo > 0) {
+            score += combo * 50 * level;
+        }
+        combo++;
+
         updateLevel();
+        updateCombo();
+        updateBackToBack();
+    } else {
+        // Reset combo si aucune ligne clearée
+        if (combo > 0) {
+            combo = 0;
+            updateCombo();
+        }
     }
 }
 
@@ -445,9 +564,13 @@ let lastTime = 0;
 let score = 0;
 let level = 1;
 let linesCleared = 0;
+let combo = 0;
+let backToBack = 0;
 let board;
 let piece;
 let nextPieces = [];
+let holdPiece = null;
+let canHold = true;
 
 function update(time = 0) {
     if (isPaused) return;
@@ -470,11 +593,36 @@ function update(time = 0) {
 
     draw();
     drawNextQueue();
+    drawHoldPiece();
     animationFrameId = requestAnimationFrame(update);
 }
 
 function updateScore() {
     scoreElement.innerText = score;
+}
+
+function updateCombo() {
+    const comboElement = document.getElementById('combo');
+    if (comboElement) {
+        if (combo > 1) {
+            comboElement.innerText = `Combo x${combo - 1}`;
+            comboElement.style.display = 'block';
+        } else {
+            comboElement.style.display = 'none';
+        }
+    }
+}
+
+function updateBackToBack() {
+    const b2bElement = document.getElementById('back-to-back');
+    if (b2bElement) {
+        if (backToBack > 1) {
+            b2bElement.innerText = `Back-to-Back x${backToBack}`;
+            b2bElement.style.display = 'block';
+        } else {
+            b2bElement.style.display = 'none';
+        }
+    }
 }
 
 // Mise à jour des event listeners
@@ -498,6 +646,8 @@ document.addEventListener('keydown', event => {
             rotateRight();
         } else if (key === ' ') {
             hardDrop();
+        } else if (key === 'c' || key === 'C' || key === 'Shift') {
+            holdCurrentPiece();
         }
     }
     if (key === 'p' || key === 'P') {
