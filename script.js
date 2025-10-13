@@ -338,22 +338,22 @@ const TETROMINOES = [
 const THEMES = {
     classic: {
         name: 'Classic',
-        bg: '#FFFFFF',
-        grid: '#CCCCCC',
-        border: '#000000',
+        bg: '#f5f5f7',  // ✨ Fond gris très clair au lieu de blanc pur
+        grid: '#d1d1d6',  // Grille légèrement plus visible
+        border: '#333333',  // Bordure moins agressive
         colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500']
     },
     dark: {
         name: 'Dark Mode',
-        bg: '#1a1a1a',
-        grid: '#444444',
-        border: '#666666',
+        bg: '#1e2128',  // ✨ Fond sombre légèrement plus clair
+        grid: '#3a3f4a',  // Grille plus visible
+        border: '#555a64',
         colors: ['#ff6b6b', '#51cf66', '#339af0', '#ffd43b', '#ff6b9d', '#22b8cf', '#ff922b']
     },
     neon: {
         name: 'Neon',
-        bg: '#0a0a0a',
-        grid: '#00ff00',
+        bg: '#0d0d0f',  // ✨ Noir profond mais pas pur
+        grid: '#00dd00',  // Grille néon moins intense
         border: '#00ff00',
         colors: ['#ff0080', '#00ff00', '#00ffff', '#ffff00', '#ff00ff', '#0080ff', '#ff8000']
     }
