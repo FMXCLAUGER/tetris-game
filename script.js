@@ -108,12 +108,34 @@ function initGame(gridType) {
     requestAnimationFrame(update);
 }
 
+// Phase 6 - Apply theme
+function applyTheme(themeName) {
+    currentTheme = themeName;
+    COLORS = [...THEMES[themeName].colors];
+
+    // Apply to body
+    document.body.style.backgroundColor = THEMES[themeName].bg === '#FFFFFF' ? '#f0f0f0' : THEMES[themeName].bg;
+    document.body.style.color = THEMES[themeName].bg === '#FFFFFF' ? '#000' : '#fff';
+
+    // Save theme preference
+    localStorage.setItem('tetrisTheme', themeName);
+}
+
 // Event listener pour le bouton de démarrage
 document.getElementById('start-game').addEventListener('click', () => {
     const gridType = document.getElementById('grid-select').value;
     gameMode = document.getElementById('game-mode').value;
+    const theme = document.getElementById('theme-select').value;
+
+    applyTheme(theme); // Phase 6 - Apply theme
+    audioManager.init(); // Phase 6 - Initialize audio
     initGame(gridType);
 });
+
+// Phase 6 - Load saved theme on page load
+const savedTheme = localStorage.getItem('tetrisTheme') || 'classic';
+document.getElementById('theme-select').value = savedTheme;
+applyTheme(savedTheme);
 
 // Afficher les high scores au chargement
 function displayHighScores() {
@@ -154,16 +176,33 @@ const TETROMINOES = [
     [[0, 0, 1], [1, 1, 1]]  // J
 ];
 
-// Mise à jour des couleurs pour plus de vivacité
-const COLORS = [
-    '#FF0000',  // Rouge vif pour I
-    '#00FF00',  // Vert vif pour O
-    '#0000FF',  // Bleu vif pour T
-    '#FFFF00',  // Jaune vif pour S
-    '#FF00FF',  // Magenta pour Z
-    '#00FFFF',  // Cyan pour L
-    '#FFA500'   // Orange pour J
-];
+// Phase 6 - Themes system
+const THEMES = {
+    classic: {
+        name: 'Classic',
+        bg: '#FFFFFF',
+        grid: '#CCCCCC',
+        border: '#000000',
+        colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500']
+    },
+    dark: {
+        name: 'Dark Mode',
+        bg: '#1a1a1a',
+        grid: '#444444',
+        border: '#666666',
+        colors: ['#ff6b6b', '#51cf66', '#339af0', '#ffd43b', '#ff6b9d', '#22b8cf', '#ff922b']
+    },
+    neon: {
+        name: 'Neon',
+        bg: '#0a0a0a',
+        grid: '#00ff00',
+        border: '#00ff00',
+        colors: ['#ff0080', '#00ff00', '#00ffff', '#ffff00', '#ff00ff', '#0080ff', '#ff8000']
+    }
+};
+
+let currentTheme = 'classic';
+let COLORS = [...THEMES[currentTheme].colors];
 
 let pieceBag = [];
 
@@ -227,10 +266,12 @@ function drawGhostPiece() {
 }
 
 function draw() {
-    context.fillStyle = '#FFFFFF';
+    // Phase 6 - Use theme background
+    context.fillStyle = THEMES[currentTheme].bg;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.strokeStyle = '#000000';
+    // Phase 6 - Use theme border
+    context.strokeStyle = THEMES[currentTheme].border;
     context.lineWidth = 0.1;
     context.strokeRect(0, 0, COLS, ROWS);
 
@@ -274,8 +315,8 @@ function drawMatrix(matrix, offset, color) {
                     );
                 }
 
-                // Bordure noire
-                context.strokeStyle = '#000000';
+                // Bordure (Phase 6 - use theme border)
+                context.strokeStyle = THEMES[currentTheme].border;
                 context.lineWidth = 0.05;
                 context.strokeRect(
                     x + offset.x + padding,
@@ -287,8 +328,8 @@ function drawMatrix(matrix, offset, color) {
         });
     });
 
-    // Grille de fond
-    context.strokeStyle = '#CCCCCC';
+    // Grille de fond (Phase 6 - use theme grid)
+    context.strokeStyle = THEMES[currentTheme].grid;
     context.lineWidth = 0.02;
     for (let x = 0; x <= COLS; x++) {
         context.beginPath();
@@ -312,7 +353,8 @@ function initNextQueue() {
 }
 
 function drawNextQueue() {
-    nextContext.fillStyle = '#FFFFFF';
+    // Phase 6 - Use theme background
+    nextContext.fillStyle = THEMES[currentTheme].bg;
     nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
 
     const pieceHeight = (nextCanvas.height / NEXT_BLOCK_SIZE) / 2;
@@ -355,7 +397,8 @@ function drawNextQueue() {
 }
 
 function drawHoldPiece() {
-    holdContext.fillStyle = '#FFFFFF';
+    // Phase 6 - Use theme background
+    holdContext.fillStyle = THEMES[currentTheme].bg;
     holdContext.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
 
     if (!holdPiece) return;
@@ -428,6 +471,7 @@ function rotateLeft() {
     );
     tryRotate(newShape);
     totalRotations++; // Phase 9 - Track rotations
+    audioManager.playRotate(); // Phase 6 - Play sound
 }
 
 function rotateRight() {
@@ -437,6 +481,7 @@ function rotateRight() {
     );
     tryRotate(newShape);
     totalRotations++; // Phase 9 - Track rotations
+    audioManager.playRotate(); // Phase 6 - Play sound
 }
 
 function tryRotate(newShape) {
@@ -495,6 +540,7 @@ function softDrop() {
         updateScore();
         lastMoveWasRotation = false; // Reset rotation flag
         totalSoftDrops++; // Phase 9 - Track soft drops
+        audioManager.playSoftDrop(); // Phase 6 - Play sound
     }
 }
 
@@ -506,6 +552,7 @@ function hardDrop() {
     }
     score += dropDistance * 2;
     totalHardDrops++; // Phase 9 - Track hard drops
+    audioManager.playHardDrop(); // Phase 6 - Play sound
     merge();
     resetPiece();
     sweepBoard();
@@ -546,6 +593,8 @@ function resetPiece() {
 function gameOver() {
     isPaused = true;
     cancelAnimationFrame(animationFrameId);
+
+    audioManager.playGameOver(); // Phase 6 - Play sound
 
     const playTime = Math.floor((Date.now() - gameStartTime) / 1000);
     saveHighScore(score, linesCleared, level, playTime);
@@ -619,6 +668,7 @@ function holdCurrentPiece() {
     }
 
     canHold = false;
+    audioManager.playHold(); // Phase 6 - Play sound
     drawHoldPiece();
     draw();
 }
@@ -808,10 +858,15 @@ function actuallyRemoveLines() {
                                    linesThisTurn === 4 ? 2000 : 3500;
         pointsEarned += perfectClearBonus;
         showSpecialMessage('PERFECT CLEAR! +' + perfectClearBonus);
+        audioManager.playPerfectClear(); // Phase 6 - Play sound
     } else if (isTSpin && linesThisTurn > 0) {
         showSpecialMessage(actionName + '! +' + pointsEarned);
+        audioManager.playTSpin(); // Phase 6 - Play sound
     } else if (linesThisTurn === 4) {
         showSpecialMessage(actionName + '! +' + pointsEarned);
+        audioManager.playTetris(); // Phase 6 - Play sound
+    } else if (linesThisTurn > 0) {
+        audioManager.playLineClear(linesThisTurn); // Phase 6 - Play sound
     }
 
     score += pointsEarned;
@@ -884,6 +939,102 @@ let totalMoves = 0;
 let totalRotations = 0;
 let totalHardDrops = 0;
 let totalSoftDrops = 0;
+
+// Phase 6 - Audio System
+class AudioManager {
+    constructor() {
+        this.audioContext = null;
+        this.isMuted = false;
+        this.volume = 0.3;
+    }
+
+    init() {
+        if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    playTone(frequency, duration, type = 'sine', volumeMultiplier = 1) {
+        if (this.isMuted || !this.audioContext) return;
+
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+
+        gainNode.gain.setValueAtTime(this.volume * volumeMultiplier, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + duration);
+    }
+
+    playMove() {
+        this.playTone(200, 0.05, 'square', 0.3);
+    }
+
+    playRotate() {
+        this.playTone(400, 0.08, 'sine', 0.4);
+    }
+
+    playSoftDrop() {
+        this.playTone(300, 0.03, 'triangle', 0.2);
+    }
+
+    playHardDrop() {
+        this.playTone(150, 0.15, 'sawtooth', 0.5);
+        setTimeout(() => this.playTone(100, 0.1, 'sawtooth', 0.5), 50);
+    }
+
+    playLineClear(lines) {
+        const frequencies = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        for (let i = 0; i < lines; i++) {
+            setTimeout(() => {
+                this.playTone(frequencies[i], 0.15, 'sine', 0.6);
+            }, i * 80);
+        }
+    }
+
+    playTetris() {
+        this.playTone(1046.50, 0.1, 'sine', 0.7);
+        setTimeout(() => this.playTone(1318.51, 0.1, 'sine', 0.7), 100);
+        setTimeout(() => this.playTone(1567.98, 0.2, 'sine', 0.7), 200);
+    }
+
+    playTSpin() {
+        this.playTone(880, 0.08, 'square', 0.6);
+        setTimeout(() => this.playTone(1174.66, 0.08, 'square', 0.6), 80);
+        setTimeout(() => this.playTone(1480, 0.12, 'square', 0.6), 160);
+    }
+
+    playPerfectClear() {
+        const melody = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98];
+        melody.forEach((freq, i) => {
+            setTimeout(() => this.playTone(freq, 0.15, 'sine', 0.8), i * 100);
+        });
+    }
+
+    playGameOver() {
+        this.playTone(440, 0.3, 'sine', 0.6);
+        setTimeout(() => this.playTone(415.30, 0.3, 'sine', 0.6), 300);
+        setTimeout(() => this.playTone(349.23, 0.5, 'sine', 0.6), 600);
+    }
+
+    playHold() {
+        this.playTone(660, 0.1, 'triangle', 0.4);
+    }
+
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        return this.isMuted;
+    }
+}
+
+const audioManager = new AudioManager();
 
 function update(time = 0) {
     if (isPaused) return;
@@ -1117,6 +1268,21 @@ document.getElementById('rotate-right').addEventListener('click', () => {
 });
 
 document.getElementById('pause').addEventListener('click', togglePause);
+
+// Phase 6 - Mute button
+document.getElementById('mute').addEventListener('click', () => {
+    const isMuted = audioManager.toggleMute();
+    const muteBtn = document.getElementById('mute');
+    const icon = muteBtn.querySelector('i');
+
+    if (isMuted) {
+        icon.classList.remove('fa-volume-up');
+        icon.classList.add('fa-volume-mute');
+    } else {
+        icon.classList.remove('fa-volume-mute');
+        icon.classList.add('fa-volume-up');
+    }
+});
 
 // Support tactile pour mobile
 let touchStartX = null;
