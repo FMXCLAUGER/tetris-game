@@ -154,3 +154,19 @@ p {
     grid-column: 3;
     grid-row: 2;
 }
+
+/* Phase 4 - Animation pour messages spéciaux */
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+#special-message {
+    animation: pulse 0.5s ease-in-out infinite;
+}

@@ -63,6 +63,11 @@ function initGame(gridType) {
     canHold = true;
     pieceCount = 0;
     gameStartTime = Date.now();
+
+    // Phase 4 - Reset advanced scoring variables
+    lastMoveWasRotation = false;
+    tSpinType = null;
+    perfectClearBonus = 0;
     updateScore();
     updateLevel();
     updateCombo();
@@ -445,11 +450,22 @@ function tryRotate(newShape) {
 
     piece.shape = newShape;
 
-    for (const kick of kickTests) {
+    for (let i = 0; i < kickTests.length; i++) {
+        const kick = kickTests[i];
         piece.x = originalX + kick.x;
         piece.y = originalY + kick.y;
 
         if (!collide(piece.shape)) {
+            // Marquer rotation réussie pour T-Spin detection
+            lastMoveWasRotation = true;
+
+            // Si kick index > 0, c'est potentiellement un vrai T-Spin
+            if (piece.typeId === 2 && i > 0) { // T piece et kick utilisé
+                tSpinType = 'normal';
+            } else if (piece.typeId === 2 && i === 0) {
+                tSpinType = 'mini'; // T piece sans kick
+            }
+
             resetLockDelay();
             draw();
             return;
@@ -469,6 +485,7 @@ function softDrop() {
     } else {
         score += 1;
         updateScore();
+        lastMoveWasRotation = false; // Reset rotation flag
     }
 }
 
@@ -636,37 +653,163 @@ function sweepBoard() {
     }
 }
 
+// Phase 4 - Détecter si c'est un vrai T-Spin
+function detectTSpin() {
+    // Vérifier que c'est une pièce T
+    if (piece.typeId !== 2) return null;
+
+    // Vérifier qu'une rotation vient d'avoir lieu
+    if (!lastMoveWasRotation) return null;
+
+    // Vérifier les 4 coins autour du centre de la pièce T
+    // Le centre de la T est à la position [0][1] de la shape
+    const centerX = piece.x + 1;
+    const centerY = piece.y;
+
+    // Les 4 coins autour du centre (diagonales)
+    const corners = [
+        { x: centerX - 1, y: centerY - 1 }, // Top-left
+        { x: centerX + 1, y: centerY - 1 }, // Top-right
+        { x: centerX - 1, y: centerY + 1 }, // Bottom-left
+        { x: centerX + 1, y: centerY + 1 }  // Bottom-right
+    ];
+
+    // Compter combien de coins sont occupés ou hors limite
+    let occupiedCorners = 0;
+    corners.forEach(corner => {
+        if (corner.x < 0 || corner.x >= COLS || corner.y < 0 || corner.y >= ROWS) {
+            occupiedCorners++; // Hors limite = occupé
+        } else if (board[corner.y] && board[corner.y][corner.x] !== 0) {
+            occupiedCorners++;
+        }
+    });
+
+    // Si 3+ coins occupés, c'est un T-Spin valide
+    if (occupiedCorners >= 3) {
+        return tSpinType || 'normal';
+    }
+
+    return null;
+}
+
+// Phase 4 - Détecter Perfect Clear (board complètement vide)
+function isPerfectClear() {
+    for (let y = 0; y < board.length; y++) {
+        for (let x = 0; x < board[y].length; x++) {
+            if (board[y][x] !== 0) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// Phase 4 - Afficher message spécial pour T-Spin et Perfect Clear
+function showSpecialMessage(message) {
+    const messageElement = document.getElementById('special-message');
+    if (messageElement) {
+        messageElement.innerText = message;
+        messageElement.style.display = 'block';
+
+        // Cacher après 2 secondes
+        setTimeout(() => {
+            messageElement.style.display = 'none';
+        }, 2000);
+    }
+}
+
 function actuallyRemoveLines() {
     const linesThisTurn = linesToClear.length;
-    let rowCount = 1;
+
+    // Phase 4 - Détection T-Spin
+    const isTSpin = detectTSpin();
+    const isPerfect = false; // On vérifie après suppression des lignes
 
     // Supprimer les lignes
     linesToClear.sort((a, b) => b - a); // Trier en ordre décroissant
     linesToClear.forEach(y => {
         const row = board.splice(y, 1)[0].fill(0);
         board.unshift(row);
-        score += rowCount * 10;
-        rowCount *= 2;
     });
 
     linesCleared += linesThisTurn;
 
-    // Tetris (4 lines) detection
-    if (linesThisTurn === 4) {
-        // Back-to-Back bonus (50% extra)
+    // Phase 4 - Nouveau système de scoring (Guideline Tetris)
+    let pointsEarned = 0;
+    let actionName = '';
+
+    if (isTSpin) {
+        // T-Spin scoring
+        if (isTSpin === 'mini') {
+            actionName = linesThisTurn === 1 ? 'T-Spin Mini Single' : 'T-Spin Mini';
+            pointsEarned = linesThisTurn === 1 ? 200 : 400;
+        } else {
+            // T-Spin normal
+            if (linesThisTurn === 1) {
+                actionName = 'T-Spin Single';
+                pointsEarned = 800;
+            } else if (linesThisTurn === 2) {
+                actionName = 'T-Spin Double';
+                pointsEarned = 1200;
+            } else if (linesThisTurn === 3) {
+                actionName = 'T-Spin Triple';
+                pointsEarned = 1600;
+            }
+        }
+
+        // Back-to-Back T-Spin bonus
         if (backToBack > 0) {
-            score += Math.floor((rowCount - 1) * 10 * 0.5);
+            pointsEarned = Math.floor(pointsEarned * 1.5);
+            actionName = 'Back-to-Back ' + actionName;
         }
         backToBack++;
-    } else if (linesThisTurn < 4 && linesThisTurn > 0) {
+    } else if (linesThisTurn === 4) {
+        // Tetris
+        actionName = 'Tetris';
+        pointsEarned = 800;
+
+        // Back-to-Back Tetris bonus
+        if (backToBack > 0) {
+            pointsEarned = 1200;
+            actionName = 'Back-to-Back Tetris';
+        }
+        backToBack++;
+    } else {
+        // Line clears normaux
+        const lineScores = [0, 100, 300, 500]; // Single, Double, Triple
+        actionName = ['', 'Single', 'Double', 'Triple'][linesThisTurn] || '';
+        pointsEarned = lineScores[linesThisTurn] || 0;
         backToBack = 0;
     }
 
+    // Multiplier par niveau
+    pointsEarned *= level;
+
     // Combo bonus
     if (combo > 0) {
-        score += combo * 50 * level;
+        pointsEarned += combo * 50 * level;
     }
     combo++;
+
+    // Perfect Clear bonus
+    if (isPerfectClear()) {
+        const perfectClearBonus = linesThisTurn === 1 ? 800 :
+                                   linesThisTurn === 2 ? 1200 :
+                                   linesThisTurn === 3 ? 1800 :
+                                   linesThisTurn === 4 ? 2000 : 3500;
+        pointsEarned += perfectClearBonus;
+        showSpecialMessage('PERFECT CLEAR! +' + perfectClearBonus);
+    } else if (isTSpin && linesThisTurn > 0) {
+        showSpecialMessage(actionName + '! +' + pointsEarned);
+    } else if (linesThisTurn === 4) {
+        showSpecialMessage(actionName + '! +' + pointsEarned);
+    }
+
+    score += pointsEarned;
+
+    // Reset rotation flag
+    lastMoveWasRotation = false;
+    tSpinType = null;
 
     updateLevel();
     updateCombo();
@@ -721,6 +864,11 @@ let gameMode = 'marathon';
 let sprintGoal = 40;
 let ultraTimeLimit = 120; // 2 minutes en secondes
 let gameTimer = 0;
+
+// Phase 4 - Advanced Scoring
+let lastMoveWasRotation = false;
+let tSpinType = null; // null, 'mini', 'normal'
+let perfectClearBonus = 0;
 
 function update(time = 0) {
     if (isPaused) return;
@@ -844,6 +992,7 @@ document.addEventListener('keydown', event => {
                 piece.x++;
             } else {
                 resetLockDelay();
+                lastMoveWasRotation = false; // Reset rotation flag on movement
             }
         } else if (key === 'ArrowRight' || key === 'UIKeyInputRightArrow') {
             piece.x++;
@@ -851,6 +1000,7 @@ document.addEventListener('keydown', event => {
                 piece.x--;
             } else {
                 resetLockDelay();
+                lastMoveWasRotation = false; // Reset rotation flag on movement
             }
         } else if (key === 'ArrowDown' || key === 'UIKeyInputDownArrow') {
             piece.y++;
@@ -859,6 +1009,7 @@ document.addEventListener('keydown', event => {
             } else {
                 score += 1; // Soft drop scoring
                 updateScore();
+                lastMoveWasRotation = false; // Reset rotation flag on movement
             }
         } else if (key === 'ArrowUp' || key === 'UIKeyInputUpArrow') {
             rotateRight();
