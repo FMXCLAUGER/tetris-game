@@ -10,6 +10,12 @@ body {
     padding: 20px;
 }
 
+/* Empêcher le zoom par double-tap sur tous les boutons et selects */
+button, select {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
 h1 {
     color: #2c3e50;
     margin-bottom: 30px;
@@ -87,6 +93,10 @@ p {
     display: flex;
     align-items: center;
     justify-content: center;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .control-btn:hover {
