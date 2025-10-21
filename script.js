@@ -6,6 +6,9 @@ const holdCanvas = document.getElementById('hold');
 const holdContext = holdCanvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 
+// Event listener manager for cleanup
+const gameEventListeners = new TetrisUtils.EventListenerManager();
+
 // Haptic Feedback Utility (Vibration API)
 const HapticFeedback = {
     enabled: true,
@@ -89,12 +92,18 @@ function initGame(gridType) {
     backToBack = 0;
     lockDelay = 0;
     lockDelayMoves = 0;
-    dropInterval = Math.max(100, 1000 - (level * 50)); // Phase 8 - Adjust speed based on start level
+    dropInterval = Math.max(
+        TetrisUtils.CONSTANTS.MIN_DROP_INTERVAL,
+        TetrisUtils.CONSTANTS.BASE_DROP_INTERVAL - (level * TetrisUtils.CONSTANTS.DROP_SPEED_MULTIPLIER)
+    );
     pieceBag = [];
     holdPiece = null;
     canHold = true;
     pieceCount = 0;
     gameStartTime = Date.now();
+
+    // Initialize throttled metrics update
+    throttledUpdateMetrics = TetrisUtils.throttle(updateMetrics, TetrisUtils.CONSTANTS.METRICS_UPDATE_INTERVAL);
 
     // Phase 4 - Reset advanced scoring variables
     lastMoveWasRotation = false;
@@ -155,7 +164,7 @@ function applyTheme(themeName) {
     document.body.style.color = THEMES[themeName].bg === '#FFFFFF' ? '#000' : '#fff';
 
     // Save theme preference
-    localStorage.setItem('tetrisTheme', themeName);
+    TetrisUtils.safeSetItem('tetrisTheme', themeName);
 }
 
 // Event listener pour le bouton de démarrage - Wrapped in DOMContentLoaded to ensure menu is ready
@@ -176,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Phase 6 - Load saved theme on page load
 document.addEventListener('DOMContentLoaded', () => {
-    const savedTheme = localStorage.getItem('tetrisTheme') || 'classic';
+    const savedTheme = TetrisUtils.safeGetItem('tetrisTheme', 'classic');
     const themeSelect = document.getElementById('theme-select');
     if (themeSelect) {
         themeSelect.value = savedTheme;
@@ -715,7 +724,7 @@ function softDrop() {
     if (collide(piece.shape)) {
         piece.y--;
     } else {
-        score += 1;
+        score += TetrisUtils.CONSTANTS.SOFT_DROP_POINTS;
         updateScore();
         lastMoveWasRotation = false; // Reset rotation flag
         totalSoftDrops++; // Phase 9 - Track soft drops
@@ -729,7 +738,7 @@ function hardDrop() {
         piece.y++;
         dropDistance++;
     }
-    score += dropDistance * 2;
+    score += dropDistance * TetrisUtils.CONSTANTS.HARD_DROP_POINTS;
     totalHardDrops++; // Phase 9 - Track hard drops
     audioManager.playHardDrop(); // Phase 6 - Play sound
     merge();
@@ -824,25 +833,26 @@ function formatTime(seconds) {
 }
 
 function saveHighScore(score, lines, level, time) {
-    let highScores = JSON.parse(localStorage.getItem('tetrisHighScores')) || [];
+    let highScores = TetrisUtils.safeGetItem('tetrisHighScores', [], TetrisUtils.validateHighScores);
 
     highScores.push({
         score: score,
         lines: lines,
         level: level,
         time: time,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        mode: gameMode
     });
 
     // Trier par score décroissant et garder top 10
     highScores.sort((a, b) => b.score - a.score);
-    highScores = highScores.slice(0, 10);
+    highScores = highScores.slice(0, TetrisUtils.CONSTANTS.MAX_HIGH_SCORES);
 
-    localStorage.setItem('tetrisHighScores', JSON.stringify(highScores));
+    TetrisUtils.safeSetItem('tetrisHighScores', highScores);
 }
 
 function getHighScores() {
-    return JSON.parse(localStorage.getItem('tetrisHighScores')) || [];
+    return TetrisUtils.safeGetItem('tetrisHighScores', [], TetrisUtils.validateHighScores);
 }
 
 function holdCurrentPiece() {
@@ -869,7 +879,10 @@ function holdCurrentPiece() {
 
 function updateLevel() {
     level = Math.floor(linesCleared / 10) + 1;
-    dropInterval = Math.max(100, 1000 - (level * 50));
+    dropInterval = Math.max(
+        TetrisUtils.CONSTANTS.MIN_DROP_INTERVAL,
+        TetrisUtils.CONSTANTS.BASE_DROP_INTERVAL - (level * TetrisUtils.CONSTANTS.DROP_SPEED_MULTIPLIER)
+    );
     const levelElement = document.getElementById('level');
     if (levelElement) {
         levelElement.innerText = level;
@@ -897,7 +910,7 @@ function sweepBoard() {
         clearingLines = true;
         setTimeout(() => {
             actuallyRemoveLines();
-        }, 200); // Animation de 200ms
+        }, TetrisUtils.CONSTANTS.ANIMATION_DURATION);
     } else {
         // Reset combo si aucune ligne clearée
         if (combo > 0) {
@@ -1105,7 +1118,7 @@ function togglePause() {
 }
 
 let dropCounter = 0;
-let dropInterval = 1000;
+let dropInterval = TetrisUtils.CONSTANTS.BASE_DROP_INTERVAL;
 let lastTime = 0;
 let score = 0;
 let level = 1;
@@ -1113,9 +1126,9 @@ let linesCleared = 0;
 let combo = 0;
 let backToBack = 0;
 let lockDelay = 0;
-let lockDelayMax = 500;
+let lockDelayMax = TetrisUtils.CONSTANTS.LOCK_DELAY_MAX;
 let lockDelayMoves = 0;
-let lockDelayMaxMoves = 15;
+let lockDelayMaxMoves = TetrisUtils.CONSTANTS.LOCK_DELAY_MAX_MOVES;
 let board;
 let piece;
 let nextPieces = [];
@@ -1126,8 +1139,8 @@ let gameStartTime = 0;
 let linesToClear = [];
 let clearingLines = false;
 let gameMode = 'marathon';
-let sprintGoal = 40;
-let ultraTimeLimit = 120; // 2 minutes en secondes
+let sprintGoal = TetrisUtils.CONSTANTS.SPRINT_GOAL_LINES;
+let ultraTimeLimit = TetrisUtils.CONSTANTS.ULTRA_TIME_LIMIT;
 let gameTimer = 0;
 
 // Phase 4 - Advanced Scoring
@@ -1140,6 +1153,9 @@ let totalMoves = 0;
 let totalRotations = 0;
 let totalHardDrops = 0;
 let totalSoftDrops = 0;
+
+// Throttled metrics update (1x per second instead of 60x per second)
+let throttledUpdateMetrics = null;
 
 // Phase 6 - Audio System
 class AudioManager {
@@ -1317,12 +1333,13 @@ class Replay {
 // Phase 10 - Replay storage functions
 function saveReplays() {
     const replays = getAllReplays();
-    localStorage.setItem('tetrisReplays', JSON.stringify(replays));
+    TetrisUtils.safeSetItem('tetrisReplays', replays);
 }
 
 function getAllReplays() {
-    const saved = localStorage.getItem('tetrisReplays');
-    return saved ? JSON.parse(saved) : [];
+    return TetrisUtils.safeGetItem('tetrisReplays', [], (replays) => {
+        return Array.isArray(replays) && replays.every(TetrisUtils.validateReplay);
+    });
 }
 
 function addReplay(replay) {
@@ -1331,9 +1348,9 @@ function addReplay(replay) {
 
     // Keep only top 10 replays by score
     replays.sort((a, b) => b.metadata.score - a.metadata.score);
-    replays = replays.slice(0, 10);
+    replays = replays.slice(0, TetrisUtils.CONSTANTS.MAX_REPLAYS);
 
-    localStorage.setItem('tetrisReplays', JSON.stringify(replays));
+    TetrisUtils.safeSetItem('tetrisReplays', replays);
 }
 
 function startRecording(seed, gameMode, gridType) {
@@ -1571,16 +1588,25 @@ function createPieceFromReplay() {
 
 // Phase 8 - Load settings from localStorage
 function loadSettings() {
-    const saved = localStorage.getItem('tetrisSettings');
+    const defaultSettings = {
+        volume: 30,
+        showGhostPiece: true,
+        showGridLines: true,
+        startLevel: 1,
+        colorblindMode: false,
+        highContrast: false
+    };
+
+    const saved = TetrisUtils.safeGetItem('tetrisSettings', null, TetrisUtils.validateSettings);
     if (saved) {
-        gameSettings = { ...gameSettings, ...JSON.parse(saved) };
+        gameSettings = { ...defaultSettings, ...saved };
     }
     applySettings();
 }
 
 // Phase 8 - Save settings to localStorage
 function saveSettings() {
-    localStorage.setItem('tetrisSettings', JSON.stringify(gameSettings));
+    TetrisUtils.safeSetItem('tetrisSettings', gameSettings);
 }
 
 // Phase 8 - Apply all settings
@@ -1747,17 +1773,25 @@ document.getElementById('save-settings').addEventListener('click', () => {
     document.getElementById('settings-modal').classList.remove('active');
 });
 
-// Phase 10 - Replay viewer functions
+// Phase 10 - Replay viewer functions (XSS-safe version)
 function displayReplays() {
     const replays = getAllReplays();
     const replaysContent = document.getElementById('replays-content');
 
+    // Clear existing content
+    replaysContent.innerHTML = '';
+
     if (replays.length === 0) {
-        replaysContent.innerHTML = '<p style="text-align: center; color: #666;">Aucun replay enregistré. Jouez une partie pour créer votre premier replay !</p>';
+        const emptyMessage = TetrisUtils.createElement('p', {
+            style: { textAlign: 'center', color: '#666' }
+        }, 'Aucun replay enregistré. Jouez une partie pour créer votre premier replay !');
+        replaysContent.appendChild(emptyMessage);
         return;
     }
 
-    let html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+    const container = TetrisUtils.createElement('div', {
+        style: { display: 'flex', flexDirection: 'column', gap: '15px' }
+    });
 
     replays.forEach((replay, index) => {
         const date = new Date(replay.metadata.date);
@@ -1771,26 +1805,87 @@ function displayReplays() {
                           replay.gridType === 'wide' ? '25×15' :
                           replay.gridType === 'tall' ? '8×25' : '8×12';
 
-        html += `<div style="border: 2px solid #9C27B0; padding: 15px; border-radius: 8px; background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);">`;
-        html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
-        html += `<div style="flex: 1;">`;
-        html += `<h3 style="margin: 0 0 10px 0; color: #9C27B0;">🎬 Replay #${index + 1}</h3>`;
-        html += `<p style="margin: 5px 0;"><strong>Score:</strong> ${replay.metadata.score.toLocaleString()}</p>`;
-        html += `<p style="margin: 5px 0;"><strong>Lignes:</strong> ${replay.metadata.lines} | <strong>Niveau:</strong> ${replay.metadata.level}</p>`;
-        html += `<p style="margin: 5px 0;"><strong>Mode:</strong> ${modeLabel} | <strong>Grille:</strong> ${gridLabel}</p>`;
-        html += `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Date:</strong> ${dateStr}</p>`;
-        html += `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Durée:</strong> ${formatTime(replay.metadata.duration)}</p>`;
-        html += `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Inputs:</strong> ${replay.inputs.length} actions | <strong>Pièces:</strong> ${replay.pieces.length}</p>`;
-        html += `</div>`;
-        html += `<div>`;
-        html += `<button onclick="playReplay(${index})" style="padding: 10px 20px; background: #9C27B0; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold;"><i class="fas fa-play"></i> Voir</button>`;
-        html += `</div>`;
-        html += `</div>`;
-        html += `</div>`;
+        // Create replay card
+        const card = TetrisUtils.createElement('div', {
+            style: {
+                border: '2px solid #9C27B0',
+                padding: '15px',
+                borderRadius: '8px',
+                background: 'linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%)'
+            }
+        });
+
+        const cardContent = TetrisUtils.createElement('div', {
+            style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
+        });
+
+        // Left side - Info
+        const infoDiv = TetrisUtils.createElement('div', { style: { flex: '1' } });
+
+        const title = TetrisUtils.createElement('h3', {
+            style: { margin: '0 0 10px 0', color: '#9C27B0' }
+        }, `🎬 Replay #${index + 1}`);
+
+        const scoreP = TetrisUtils.createElement('p', { style: { margin: '5px 0' } });
+        scoreP.innerHTML = `<strong>Score:</strong> ${TetrisUtils.formatNumber(replay.metadata.score)}`;
+
+        const linesP = TetrisUtils.createElement('p', { style: { margin: '5px 0' } });
+        linesP.innerHTML = `<strong>Lignes:</strong> ${replay.metadata.lines} | <strong>Niveau:</strong> ${replay.metadata.level}`;
+
+        const modeP = TetrisUtils.createElement('p', { style: { margin: '5px 0' } });
+        modeP.innerHTML = `<strong>Mode:</strong> ${TetrisUtils.sanitizeHTML(modeLabel)} | <strong>Grille:</strong> ${gridLabel}`;
+
+        const dateP = TetrisUtils.createElement('p', {
+            style: { margin: '5px 0', fontSize: '12px', color: '#666' }
+        });
+        dateP.innerHTML = `<strong>Date:</strong> ${TetrisUtils.sanitizeHTML(dateStr)}`;
+
+        const durationP = TetrisUtils.createElement('p', {
+            style: { margin: '5px 0', fontSize: '12px', color: '#666' }
+        });
+        durationP.innerHTML = `<strong>Durée:</strong> ${TetrisUtils.formatTime(replay.metadata.duration)}`;
+
+        const inputsP = TetrisUtils.createElement('p', {
+            style: { margin: '5px 0', fontSize: '12px', color: '#666' }
+        });
+        inputsP.innerHTML = `<strong>Inputs:</strong> ${replay.inputs.length} actions | <strong>Pièces:</strong> ${replay.pieces.length}`;
+
+        infoDiv.appendChild(title);
+        infoDiv.appendChild(scoreP);
+        infoDiv.appendChild(linesP);
+        infoDiv.appendChild(modeP);
+        infoDiv.appendChild(dateP);
+        infoDiv.appendChild(durationP);
+        infoDiv.appendChild(inputsP);
+
+        // Right side - Button
+        const buttonDiv = TetrisUtils.createElement('div');
+        const playButton = TetrisUtils.createElement('button', {
+            style: {
+                padding: '10px 20px',
+                background: '#9C27B0',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold'
+            }
+        });
+        playButton.innerHTML = '<i class="fas fa-play"></i> Voir';
+
+        // Use addEventListener instead of onclick
+        playButton.addEventListener('click', () => playReplay(index));
+
+        buttonDiv.appendChild(playButton);
+
+        cardContent.appendChild(infoDiv);
+        cardContent.appendChild(buttonDiv);
+        card.appendChild(cardContent);
+        container.appendChild(card);
     });
 
-    html += '</div>';
-    replaysContent.innerHTML = html;
+    replaysContent.appendChild(container);
 }
 
 // Phase 10 - Event listeners for replays modal
@@ -1881,15 +1976,12 @@ let unlockedAchievements = [];
 
 // Phase 7 - Load achievements from localStorage
 function loadAchievements() {
-    const saved = localStorage.getItem('tetrisAchievements');
-    if (saved) {
-        unlockedAchievements = JSON.parse(saved);
-    }
+    unlockedAchievements = TetrisUtils.safeGetItem('tetrisAchievements', [], TetrisUtils.validateAchievements);
 }
 
 // Phase 7 - Save achievements to localStorage
 function saveAchievements() {
-    localStorage.setItem('tetrisAchievements', JSON.stringify(unlockedAchievements));
+    TetrisUtils.safeSetItem('tetrisAchievements', unlockedAchievements);
 }
 
 // Phase 7 - Check for new achievements
@@ -1939,16 +2031,29 @@ function showAchievementNotification(achievement) {
 
 // Phase 7 - Load stats from localStorage
 function loadStats() {
-    const saved = localStorage.getItem('tetrisStats');
-    if (saved) {
-        gameStats = JSON.parse(saved);
-    }
+    const defaultStats = {
+        totalGames: 0,
+        totalLines: 0,
+        totalScore: 0,
+        totalPlayTime: 0,
+        pieceStats: [0, 0, 0, 0, 0, 0, 0],
+        highestCombo: 0,
+        highestBackToBack: 0,
+        totalTSpins: 0,
+        totalPerfectClears: 0,
+        totalTetrises: 0,
+        fastestSprint: Infinity,
+        gamesWon: 0,
+        gamesLost: 0
+    };
+
+    gameStats = TetrisUtils.safeGetItem('tetrisStats', defaultStats, TetrisUtils.validateGameStats);
     loadAchievements(); // Also load achievements
 }
 
 // Phase 7 - Save stats to localStorage
 function saveStats() {
-    localStorage.setItem('tetrisStats', JSON.stringify(gameStats));
+    TetrisUtils.safeSetItem('tetrisStats', gameStats);
 }
 
 // Phase 7 - Update stats
@@ -2042,7 +2147,12 @@ function update(time = 0) {
     draw();
     drawNextQueue();
     drawHoldPiece();
-    updateMetrics(); // Phase 9 - Update metrics in real-time
+
+    // Phase 9 - Update metrics (throttled to 1x per second for performance)
+    if (throttledUpdateMetrics) {
+        throttledUpdateMetrics();
+    }
+
     animationFrameId = requestAnimationFrame(update);
 }
 
@@ -2259,7 +2369,7 @@ let touchStartX = null;
 let touchStartY = null;
 
 // Seuil minimum pour détecter un swipe (évite les mouvements accidentels)
-const SWIPE_THRESHOLD = 30;
+const SWIPE_THRESHOLD = TetrisUtils.CONSTANTS.SWIPE_THRESHOLD;
 
 // Attacher les touch listeners UNIQUEMENT au canvas pour ne pas bloquer les boutons HTML
 canvas.addEventListener('touchstart', (e) => {

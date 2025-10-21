@@ -246,8 +246,7 @@
     }
 
     function getHighScores() {
-        const scores = JSON.parse(localStorage.getItem('tetrisHighScores')) || [];
-        return scores;
+        return window.TetrisUtils.safeGetItem('tetrisHighScores', [], window.TetrisUtils.validateHighScores);
     }
 
     function formatTime(seconds) {
@@ -261,7 +260,23 @@
     // ========================================
 
     function updateTotalGamesPlayed() {
-        const stats = JSON.parse(localStorage.getItem('tetrisStats'));
+        const defaultStats = {
+            totalGames: 0,
+            totalLines: 0,
+            totalScore: 0,
+            totalPlayTime: 0,
+            pieceStats: [0, 0, 0, 0, 0, 0, 0],
+            highestCombo: 0,
+            highestBackToBack: 0,
+            totalTSpins: 0,
+            totalPerfectClears: 0,
+            totalTetrises: 0,
+            fastestSprint: Infinity,
+            gamesWon: 0,
+            gamesLost: 0
+        };
+
+        const stats = window.TetrisUtils.safeGetItem('tetrisStats', defaultStats, window.TetrisUtils.validateGameStats);
         const elem = document.getElementById('total-games-played');
 
         if (stats && elem) {
